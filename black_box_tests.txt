@@ -1,0 +1,109 @@
+Test 1: RegisterUser(email: string, username: string, pswd: string)
+
+email = "valid";
+username = "valid";
+pswd = "valid";
+
+Expected Result:
+
+Pass
+
+Test 2: RegisterUser(email: string, username: string, pswd: string)
+
+email = "not_valid";
+username = "valid";
+pswd = "valid";
+
+Expected Result:
+
+Fail
+
+Test 3: RegisterUser(email: string, username: string, pswd: string)
+
+email = "valid";
+username = "not_valid";
+pswd = "valid";
+
+Expected Result:
+
+Fail
+
+Test 4: RegisterUser(email: string, username: string, pswd: string)
+
+email = "valid";
+username = "valid";
+pswd = "not_valid";
+
+Expected Result:
+
+Fail
+
+Test 5: LoginUser(username: string, pswd: string)
+
+username = "valid";
+pswd = "valid";
+
+Expected Result:
+
+Pass
+
+Test 6: LoginUser(username: string, pswd: string)
+
+username = "not_valid";
+pswd = "valid";
+
+Expected Result:
+
+Fail
+
+Test 7: LoginUser(username: string, pswd: string)
+
+username = "valid";
+pswd = "not_valid";
+
+Expected Result:
+
+Fail
+
+Test 8; JoinMultiplayerGame(joinCode: string)
+
+joinCode = "valid";
+
+Expected Result:
+
+Pass
+
+Test 9: JoinMultiplayerGame(joinCode: string)
+
+joinCode = "not_valid";
+
+Expected Result:
+
+Fail
+
+Test 10: GenerateNPCs(seed: integer, freq: double, recipeSet: RecipeSet)
+
+seed = 42;
+freq = 42;
+
+Expected Result:
+
+Pass
+
+Test 11: GenerateNPCs(seed: integer, freq: double, recipeSet: RecipeSet)
+
+seed = 42;
+freq = not_valid;
+
+Expected Result:
+
+Fail
+
+Test 12: GenerateNPCs(seed: integer, freq: double, recipeSet: RecipeSet)
+
+seed = not_valid;
+freq = 42;
+
+Expected Result:
+
+Fail
