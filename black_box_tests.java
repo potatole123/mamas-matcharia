@@ -103,6 +103,29 @@ public class Testing {
         assertEquals(username, result.displayName);
     }
 
+       @Test
+    public void RegisterUser_passwordLength17_fail() {
+        String email = "a@b.c";
+        String username = "LebronJames1";
+        String pswd = "Aa1!b123456789012";
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            RegisterUser(email, username, pswd);
+        });
+    }
+
+    @Test
+    public void RegisterUser_passwordLength16_pass() {
+        String email = "a@b.c";
+        String username = "LebronJames1";
+        String pswd = "Aa1!bc1234567890";
+
+        Profile result = RegisterUser(email, username, pswd);
+
+        assertEquals(username, result.displayName);
+    }
+
+
     @Test
     public void RegisterUser_passwordMissingUppercase_fail() {
         String email = "a@b.c";
