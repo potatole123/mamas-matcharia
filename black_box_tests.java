@@ -6,9 +6,9 @@ public class Testing {
 
     @Test
     public void RegisterUser_validEmail_validUsername_validPswd_pass() {
-        String email = "valid";
-        String username = "valid";
-        String pswd = "valid";
+        String email = "a@b.c";
+        String username = "LebronJames1";
+        String pswd = "BronnyJames!";
 
         Profile result = RegisterUser(email, username, pswd);
 
@@ -17,9 +17,9 @@ public class Testing {
 
     @Test
     public void RegisterUser_notValidEmail_validUsername_validPswd_fail() {
-        String email = "not_valid";
-        String username = "valid";
-        String pswd = "valid";
+        String email = "a@b.";
+        String username = "LebronJames1";
+        String pswd = "BronnyJames!";
 
         assertThrows(IllegalArgumentException.class, () -> {
             RegisterUser(email, username, pswd);
@@ -28,9 +28,9 @@ public class Testing {
 
     @Test
     public void RegisterUser_validEmail_notValidUsername_validPswd_fail() {
-        String email = "valid";
-        String username = "not_valid";
-        String pswd = "valid";
+        String email = "a@b.c";
+        String username = "a";
+        String pswd = "BronnyJames!";
 
         assertThrows(IllegalArgumentException.class, () -> {
             RegisterUser(email, username, pswd);
@@ -39,9 +39,9 @@ public class Testing {
 
     @Test
     public void RegisterUser_validEmail_validUsername_notValidPswd_fail() {
-        String email = "valid";
-        String username = "valid";
-        String pswd = "not_valid";
+        String email = "a@b.c";
+        String username = "LebronJames1";
+        String pswd = "b";
 
         assertThrows(IllegalArgumentException.class, () -> {
             RegisterUser(email, username, pswd);
@@ -50,8 +50,8 @@ public class Testing {
 
     @Test
     public void LoginUser_validUsername_validPswd_pass() {
-        String username = "valid";
-        String pswd = "valid";
+        String username = "LebronJames1";
+        String pswd = "BronnyJames!";
 
         Profile result = LoginUser(username, pswd);
 
@@ -60,8 +60,8 @@ public class Testing {
 
     @Test
     public void LoginUser_notValidUsername_validPswd_fail() {
-        String username = "not_valid";
-        String pswd = "valid";
+        String username = "l";
+        String pswd = "BronnyJames!";
 
         assertThrows(IllegalArgumentException.class, () -> {
             LoginUser(username, pswd);
@@ -70,8 +70,8 @@ public class Testing {
 
     @Test
     public void LoginUser_validUsername_notValidPswd_fail() {
-        String username = "valid";
-        String pswd = "not_valid";
+        String username = "LebronJames1";
+        String pswd = "b";
 
         assertThrows(IllegalArgumentException.class, () -> {
             LoginUser(username, pswd);
@@ -80,14 +80,14 @@ public class Testing {
 
     @Test
     public void JoinMultiplayerGame_validJoinCode_pass() {
-        String joinCode = "valid";
+        String joinCode = "123456";
 
         JoinMultiplayerGame(joinCode);
     }
 
     @Test
     public void JoinMultiplayerGame_notValidJoinCode_fail() {
-        String joinCode = "not_valid";
+        String joinCode = "meow";
 
         assertThrows(IllegalArgumentException.class, () -> {
             JoinMultiplayerGame(joinCode);
@@ -97,7 +97,7 @@ public class Testing {
     @Test
     public void GenerateNPCs_validSeed_validFreq_validRecipeSet_pass() {
         int seed = 42;
-        double freq = 42;
+        double freq = 4.0;
         RecipeSet recipeSet = new RecipeSet();
 
         List<NPC> result = GenerateNPCs(seed, freq, recipeSet);
@@ -108,7 +108,7 @@ public class Testing {
     @Test
     public void GenerateNPCs_validSeed_notValidFreq_validRecipeSet_fail() {
         int seed = 42;
-        double freq = -1;
+        double freq = 0;
         RecipeSet recipeSet = new RecipeSet();
 
         assertThrows(IllegalArgumentException.class, () -> {
