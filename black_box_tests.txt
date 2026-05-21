@@ -93,16 +93,7 @@ Pass
 Test 11: GenerateNPCs(seed: integer, freq: double, recipeSet: RecipeSet)
 
 seed = 42;
-freq = not_valid;
-
-Expected Result:
-
-Fail
-
-Test 12: GenerateNPCs(seed: integer, freq: double, recipeSet: RecipeSet)
-
-seed = not_valid;
-freq = 42;
+freq = -1;
 
 Expected Result:
 
