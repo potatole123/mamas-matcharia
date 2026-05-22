@@ -1,0 +1,134 @@
+.home-page {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  overflow: hidden;
+  background: #6f6f6f;
+}
+
+.home-stage {
+  position: relative;
+  width: min(100vw, calc(100svh * 6844 / 5100));
+  aspect-ratio: 6844 / 5100;
+  overflow: hidden;
+  background: #5d8741;
+}
+
+.home-stage img {
+  pointer-events: none;
+  user-select: none;
+}
+
+.home-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.home-cup {
+  position: absolute;
+  left: 50%;
+  top: 3.1%;
+  width: 47.4%;
+  transform: translateX(-50%);
+}
+
+.home-logo {
+  position: absolute;
+  left: 50%;
+  top: 12.7%;
+  width: 64.7%;
+  transform: translateX(-50%);
+}
+
+.home-image-button {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    filter 120ms ease,
+    transform 120ms ease;
+}
+
+.home-image-button img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.home-image-button:hover {
+  filter: brightness(1.05);
+}
+
+.home-image-button:active {
+  filter: brightness(0.96);
+}
+
+.home-image-button:focus-visible {
+  outline: clamp(2px, 0.3vw, 5px) solid #f8f3cf;
+  outline-offset: clamp(3px, 0.45vw, 8px);
+  border-radius: 999px;
+}
+
+.home-logout-button {
+  top: 3.1%;
+  right: 3.2%;
+  width: 10.2%;
+}
+
+.home-logout-button:hover {
+  transform: translateY(-1.5%);
+}
+
+.home-logout-button:active {
+  transform: translateY(1%);
+}
+
+.home-start-button,
+.home-freeplay-button,
+.home-create-multiplayer-button,
+.home-join-multiplayer-button {
+  left: 50%;
+  width: 40.9%;
+  transform: translateX(-50%);
+}
+
+.home-start-button:hover,
+.home-freeplay-button:hover,
+.home-create-multiplayer-button:hover,
+.home-join-multiplayer-button:hover {
+  transform: translateX(-50%) translateY(-1.5%);
+}
+
+.home-start-button:active,
+.home-freeplay-button:active,
+.home-create-multiplayer-button:active,
+.home-join-multiplayer-button:active {
+  transform: translateX(-50%) translateY(1%);
+}
+
+.home-start-button {
+  top: 54.6%;
+}
+
+.home-freeplay-button {
+  top: 64.7%;
+}
+
+.home-create-multiplayer-button {
+  top: 74.8%;
+}
+
+.home-join-multiplayer-button {
+  top: 84.9%;
+}
+
+@media (max-aspect-ratio: 6844 / 5100) {
+  .home-stage {
+    width: 100vw;
+  }
+}

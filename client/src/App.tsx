@@ -1,24 +1,20 @@
 import HomePage from './pages/HomePage'
 import GamePage from './pages/GamePage'
 import GameSummary from './pages/GameSummary'
-import { Routes, Route, Link } from 'react-router-dom'
+import StartPage from './pages/StartPage'
+import { Routes, Route } from 'react-router-dom'
 import './App.css'
 
 function App() {
   return (
-    <>
-      <nav style={{ display: 'flex', gap: '10px'}}>
-        <Link to="/"><button>Home</button></Link>
-        <Link to="/game"><button>Game</button></Link>
-        <Link to="/game-summary"><button>Game Summary</button></Link>
-      </nav>
-
+    <div className="app-shell">
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<StartPage />} />
+        <Route path="/home" element={<HomePage />} />
         <Route path="/game" element={<GamePage />} />
         <Route path="/game-summary" element={<GameSummary />} />
       </Routes>
-    </>
+    </div>
   )
 }
 
