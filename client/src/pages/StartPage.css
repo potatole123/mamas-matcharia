@@ -1,0 +1,94 @@
+.start-page {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  overflow: hidden;
+  background: #6f6f6f;
+}
+
+.start-stage {
+  position: relative;
+  width: min(100vw, calc(100svh * 6844 / 5100));
+  aspect-ratio: 6844 / 5100;
+  overflow: hidden;
+  background: #5d8741;
+}
+
+.start-stage img {
+  pointer-events: none;
+  user-select: none;
+}
+
+.start-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.start-cup {
+  position: absolute;
+  left: 50%;
+  top: 3.1%;
+  width: 47.4%;
+  transform: translateX(-50%);
+}
+
+.start-logo {
+  position: absolute;
+  left: 50%;
+  top: 12.7%;
+  width: 64.7%;
+  transform: translateX(-50%);
+}
+
+.start-image-button {
+  position: absolute;
+  left: 50%;
+  width: 37.8%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transform: translateX(-50%);
+  transition:
+    filter 120ms ease,
+    transform 120ms ease;
+}
+
+.start-image-button img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.start-image-button:hover {
+  filter: brightness(1.05);
+  transform: translateX(-50%) translateY(-1.5%);
+}
+
+.start-image-button:active {
+  filter: brightness(0.96);
+  transform: translateX(-50%) translateY(1%);
+}
+
+.start-image-button:focus-visible {
+  outline: clamp(2px, 0.3vw, 5px) solid #f8f3cf;
+  outline-offset: clamp(3px, 0.45vw, 8px);
+  border-radius: 999px;
+}
+
+.start-login-button {
+  top: 65.2%;
+}
+
+.start-signup-button {
+  top: 76.8%;
+}
+
+@media (max-aspect-ratio: 6844 / 5100) {
+  .start-stage {
+    width: 100vw;
+  }
+}

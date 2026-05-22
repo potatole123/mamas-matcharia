@@ -1,5 +1,5 @@
-import { initializeApp } from "firebase/app";
-import { GoogleAuthProvider, getAuth } from "firebase/auth";
+import { initializeApp, type FirebaseApp } from 'firebase/app'
+import { GoogleAuthProvider, getAuth, type Auth } from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -9,9 +9,17 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
-};
+}
 
-const app = initializeApp(firebaseConfig);
+const requiredConfig = [
+  firebaseConfig.apiKey,
+  firebaseConfig.authDomain,
+  firebaseConfig.projectId,
+  firebaseConfig.appId,
+]
 
-export const auth = getAuth(app);
-export const provider = new GoogleAuthProvider();
+export const isFirebaseConfigured = requiredConfig.every(Boolean)
+
+export const app: FirebaseApp | null = isFirebaseConfigured ? initializeApp(firebaseConfig) : null
+export const auth: Auth | null = app ? getAuth(app) : null
+export const provider = new GoogleAuthProvider()

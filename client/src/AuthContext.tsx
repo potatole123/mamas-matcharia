@@ -1,93 +1,90 @@
 import {
-    createContext,
-    useContext,
-    useEffect,
-    useState,
-    type ReactNode,
-} from "react";
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import {
-    createUserWithEmailAndPassword,
-    GoogleAuthProvider,
-    onAuthStateChanged,
-    signInWithEmailAndPassword,
-    signInWithPopup,
-    signOut,
-    type User,
-    type UserCredential
+  createUserWithEmailAndPassword,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  type User,
 } from 'firebase/auth'
 
-import { auth } from './firebase'
+import { AuthContext } from './auth'
+import { auth, isFirebaseConfigured } from './firebase'
 
-type AuthContextValue = {
-  user: User | null;
-  username: string | null;
-  loading: boolean;
-  signInGoogle: () => Promise<UserCredential>;
-  signUp: (email: string, password: string) => Promise<UserCredential>;
-  login: (email: string, password: string) => Promise<UserCredential>;
-  logout: () => Promise<void>;
-  getIdToken: () => Promise<string | null>;
-};
+const firebaseConfigError = new Error('Firebase is not configured. Add the VITE_FIREBASE_* values to client/.env.')
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null)
+  const [username, setUsername] = useState<string | null>(null)
+  const [loading, setLoading] = useState(Boolean(auth))
+  const value = {
+    user,
+    username,
+    loading,
+    signInGoogle,
+    signUp,
+    login,
+    logout,
+    getIdToken,
+  }
 
-export function useAuth() {
-    const context = useContext(AuthContext)
-    if (context === undefined) {
-        throw new Error("undefined auth context value provided")
-    }
-    return context
-}
-
-export function AuthProvider( { children }: { children: ReactNode } ) {
-    const [user, setUser] = useState<User | null>(null);
-    const [username, setUsername] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-    const value = {
-        user,
-        username,
-        loading,
-        signInGoogle,
-        signUp,
-        login,
-        logout,
-        getIdToken,
-    };
-
-   useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setUser(user);
-            setUsername(user?.email?.split("@")[0] ?? null);
-            setLoading(false);
-        });
-        return () => unsubscribe();
-    }, []);
-
-    function signInGoogle() {
-        const gProvider = new GoogleAuthProvider()
-        return signInWithPopup(auth, gProvider)
+  useEffect(() => {
+    if (!auth) {
+      return undefined
     }
 
-    function signUp(email: string, password: string) {
-        return createUserWithEmailAndPassword(auth, email, password)
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user)
+      setUsername(user?.email?.split('@')[0] ?? null)
+      setLoading(false)
+    })
+    return () => unsubscribe()
+  }, [])
+
+  function signInGoogle() {
+    if (!auth || !isFirebaseConfigured) {
+      return Promise.reject(firebaseConfigError)
     }
 
-    function login(email: string , password: string) {
-        return signInWithEmailAndPassword(auth, email, password)
+    const gProvider = new GoogleAuthProvider()
+    return signInWithPopup(auth, gProvider)
+  }
+
+  function signUp(email: string, password: string) {
+    if (!auth || !isFirebaseConfigured) {
+      return Promise.reject(firebaseConfigError)
     }
 
-    function logout() {
-        return signOut(auth)
+    return createUserWithEmailAndPassword(auth, email, password)
+  }
+
+  function login(email: string, password: string) {
+    if (!auth || !isFirebaseConfigured) {
+      return Promise.reject(firebaseConfigError)
     }
 
-    function getIdToken() {
-        return auth.currentUser?.getIdToken() ?? Promise.resolve(null);
-    }   
+    return signInWithEmailAndPassword(auth, email, password)
+  }
 
-    return(
-        <AuthContext.Provider value={value}>
-            {!loading && children}
-        </AuthContext.Provider>
-    )
+  function logout() {
+    if (!auth || !isFirebaseConfigured) {
+      setUser(null)
+      setUsername(null)
+      return Promise.resolve()
+    }
+
+    return signOut(auth)
+  }
+
+  function getIdToken() {
+    return auth?.currentUser?.getIdToken() ?? Promise.resolve(null)
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
