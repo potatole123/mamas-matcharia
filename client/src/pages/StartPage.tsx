@@ -23,7 +23,6 @@ function ImageButton({ label, src, className, onClick }: ImageButtonProps) {
 
 function StartPage() {
   const navigate = useNavigate()
-  const goToHome = () => navigate('/home')
 
   return (
     <main className="start-page" aria-label="Mama's Matcharia start page">
@@ -35,13 +34,13 @@ function StartPage() {
           className="start-login-button"
           label="Log in"
           src={loginButton}
-          onClick={goToHome}
+          onClick={() => navigate('/login')}
         />
         <ImageButton
           className="start-signup-button"
           label="Sign up"
           src={signupButton}
-          onClick={goToHome}
+          onClick={() => navigate('/signup')}
         />
       </section>
     </main>

@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth'
 import backgroundStart from '../assets/start/background-start.png'
 import logoGameName from '../assets/start/logo-game-name.png'
 import logoLargeCup from '../assets/start/logo-large-cup.png'
@@ -33,6 +34,12 @@ const noop = () => undefined
 
 function HomePage() {
   const navigate = useNavigate()
+  const { logout } = useAuth()
+
+  async function handleLogout() {
+    await logout()
+    navigate('/')
+  }
 
   return (
     <main className="home-page" aria-label="Mama's Matcharia home page">
@@ -44,7 +51,7 @@ function HomePage() {
           className="home-logout-button"
           label="Log out"
           src={logoutButton}
-          onClick={() => navigate('/')}
+          onClick={handleLogout}
         />
         <HomeButton
           className="home-start-button"
