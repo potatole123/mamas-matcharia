@@ -43,6 +43,7 @@
   height: auto;
 }
 
+.order-station-page .order-bear-customer,
 .order-station-page .order-bear-smile {
   position: absolute;
   left: 60%;
@@ -54,10 +55,11 @@
 
 .order-station-page .order-speech-bubble {
   position: absolute;
-  left: 29%;
+  left: 31%;
   top: 15%;
   width: 30%;
   height: auto;
+  animation: order-speech-bob 900ms ease-in-out infinite;
 }
 
 .station-dock {
@@ -69,5 +71,19 @@
 @media (max-aspect-ratio: 6844 / 5100) {
   .station-stage {
     width: 100vw;
+  }
+}
+
+@keyframes order-speech-bob {
+  0% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-2%);
+  }
+
+  100% {
+    transform: translateY(0);
   }
 }
