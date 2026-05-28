@@ -1,0 +1,21 @@
+.order-station-page {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  overflow: hidden;
+  background: #6f6f6f;
+}
+
+.order-station-background {
+  width: min(100vw, calc(100svh * 6844 / 5100));
+  aspect-ratio: 6844 / 5100;
+  object-fit: cover;
+  user-select: none;
+  pointer-events: none;
+}
+
+@media (max-aspect-ratio: 6844 / 5100) {
+  .order-station-background {
+    width: 100vw;
+  }
+}

@@ -4,6 +4,7 @@ import GameSummary from './pages/GameSummary'
 import StartPage from './pages/StartPage'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
+import OrderStationPage from './pages/OrderStationPage'
 import { Navigate, Routes, Route } from 'react-router-dom'
 import { useAuth } from './auth'
 import './App.css'
@@ -49,6 +50,14 @@ function App() {
           element={
             <ProtectedRoute>
               <GameSummary />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/order-station"
+          element={
+            <ProtectedRoute>
+              <OrderStationPage />
             </ProtectedRoute>
           }
         />
