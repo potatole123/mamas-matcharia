@@ -27,6 +27,45 @@
   object-fit: cover;
 }
 
+.station-order-ticket {
+  position: absolute;
+  top: 4.2%;
+  right: 3.2%;
+  width: 24%;
+  height: auto;
+}
+
+.order-station-page .order-bearista {
+  position: absolute;
+  left: 2.8%;
+  bottom: 0%;
+  width: 29%;
+  height: auto;
+}
+
+.order-station-page .order-bear-smile {
+  position: absolute;
+  left: 60%;
+  top: 59%;
+  width: 20%;
+  height: auto;
+  transform: translate(-50%, -50%);
+}
+
+.order-station-page .order-speech-bubble {
+  position: absolute;
+  left: 29%;
+  top: 15%;
+  width: 30%;
+  height: auto;
+}
+
+.station-dock {
+  width: 66%;
+  gap: 5%;
+}
+
+
 @media (max-aspect-ratio: 6844 / 5100) {
   .station-stage {
     width: 100vw;

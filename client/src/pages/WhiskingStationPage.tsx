@@ -1,5 +1,6 @@
 import stationTable from '../assets/station-shared/station-table.png'
 import StationDock from '../components/StationDock'
+import orderTicket from '../assets/station-shared/order-ticket.png'
 import './StationPage.css'
 
 function WhiskingStationPage() {
@@ -7,6 +8,7 @@ function WhiskingStationPage() {
     <main className="station-page" aria-label="Whisking station page">
       <section className="station-stage">
         <img className="station-background" src={stationTable} alt="" draggable="false" />
+        <img className="station-order-ticket" src={orderTicket} alt="" draggable="false" />
         <StationDock currentStation="whisking" />
       </section>
     </main>
