@@ -57,7 +57,7 @@ function HomePage() {
           className="home-start-button"
           label="Start"
           src={startButton}
-          onClick={noop}
+          onClick={() => navigate('/order-station')}
         />
         <HomeButton
           className="home-freeplay-button"
