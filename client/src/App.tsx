@@ -4,6 +4,12 @@ import GameSummary from './pages/GameSummary'
 import StartPage from './pages/StartPage'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
+import OrderStationPage from './pages/OrderStationPage'
+import BaseStationPage from './pages/BaseStationPage'
+import WhiskingStationPage from './pages/WhiskingStationPage'
+import ToppingStationPage from './pages/ToppingStationPage'
+import WaitingRoomPage from './pages/WaitingRoomPage'
+import EnterJoinCodePage from './pages/EnterJoinCodePage'
 import { Navigate, Routes, Route } from 'react-router-dom'
 import { useAuth } from './auth'
 import './App.css'
@@ -49,6 +55,54 @@ function App() {
           element={
             <ProtectedRoute>
               <GameSummary />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/order-station"
+          element={
+            <ProtectedRoute>
+              <OrderStationPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/base-station"
+          element={
+            <ProtectedRoute>
+              <BaseStationPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/whisking-station"
+          element={
+            <ProtectedRoute>
+              <WhiskingStationPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/topping-station"
+          element={
+            <ProtectedRoute>
+              <ToppingStationPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/waiting-room"
+          element={
+            <ProtectedRoute>
+              <WaitingRoomPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/enter-join-code"
+          element={
+            <ProtectedRoute>
+              <EnterJoinCodePage />
             </ProtectedRoute>
           }
         />

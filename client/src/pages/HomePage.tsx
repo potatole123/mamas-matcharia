@@ -57,7 +57,7 @@ function HomePage() {
           className="home-start-button"
           label="Start"
           src={startButton}
-          onClick={noop}
+          onClick={() => navigate('/order-station')}
         />
         <HomeButton
           className="home-freeplay-button"
@@ -75,7 +75,7 @@ function HomePage() {
           className="home-join-multiplayer-button"
           label="Join multiplayer game"
           src={joinMultiplayerButton}
-          onClick={noop}
+          onClick={() => navigate('/enter-join-code')}
         />
       </section>
     </main>

@@ -1,0 +1,18 @@
+import stationTable from '../assets/station-shared/station-table.png'
+import StationDock from '../components/StationDock'
+import orderTicket from '../assets/station-shared/order-ticket.png'
+import './StationPage.css'
+
+function ToppingStationPage() {
+  return (
+    <main className="station-page" aria-label="Topping station page">
+      <section className="station-stage">
+        <img className="station-background" src={stationTable} alt="" draggable="false" />
+        <img className="station-order-ticket" src={orderTicket} alt="" draggable="false" />
+        <StationDock currentStation="topping" />
+      </section>
+    </main>
+  )
+}
+
+export default ToppingStationPage
