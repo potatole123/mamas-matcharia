@@ -9,6 +9,7 @@ type StationKey = 'order' | 'base' | 'whisking' | 'topping'
 
 type StationDockProps = {
   currentStation: StationKey
+  disabled?: boolean
 }
 
 const stationButtons: Array<{
@@ -33,7 +34,7 @@ const stationButtons: Array<{
   },
 ]
 
-function StationDock({ currentStation }: StationDockProps) {
+function StationDock({ currentStation, disabled = false }: StationDockProps) {
   const navigate = useNavigate()
 
   return (
@@ -48,6 +49,7 @@ function StationDock({ currentStation }: StationDockProps) {
             type="button"
             aria-label={station.label}
             aria-current={isActive ? 'page' : undefined}
+            disabled={disabled}
             onClick={() => navigate(station.path)}
           >
             <img src={station.imageSrc} alt="" draggable="false" />

@@ -6,87 +6,14 @@ import bearLaugh from '../assets/order/bear-laugh.png'
 import bearOpen from '../assets/order/bear-open.png'
 import speechBubble from '../assets/order/speech-bubble.png'
 import orderCounter from '../assets/order/order-counter.png'
+import OrderTicketBoard, { ORDER_TICKET_FIELDS } from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
-import orderTicket from '../assets/station-shared/order-ticket.png'
-import {
-  CREAM_TOP_TYPES,
-  CUP_SIZES,
-  FLAVOR_TYPES,
-  ICE_LEVELS,
-  MATCHA_TYPES,
-  MILK_TYPES,
-  POWDER_TYPES,
-  SWEETENER_TYPES,
-  SWEETNESS_LEVELS,
-  TEMPS,
-  type Recipe,
-} from '../types/recipe'
+import { useOrderTicketsContext } from '../OrderTicketsContext'
 import './StationPage.css'
 
 type BearPhase = 'idle' | 'spawn' | 'moving' | 'at-counter' | 'talking' | 'exiting' | 'done'
 
 const TALKING_BEAR_EXPRESSIONS = [bearSmile, bearLaugh, bearOpen]
-const DISPLAYED_RECIPE_KEYS: Array<keyof Omit<Recipe, 'recipeId'>> = [
-  'cupSize',
-  'temp',
-  'iceLevel',
-  'matcha',
-  'milk',
-  'flavor',
-  'sweetener',
-  'sweetnessLevel',
-  'creamTop',
-  'powder',
-]
-
-function randomChoice<T>(values: readonly T[]): T {
-  const randomIndex = Math.floor(Math.random() * values.length)
-  return values[randomIndex]
-}
-
-function generateRandomRecipe(recipeIdSeed: number): Recipe {
-  return {
-    recipeId: `recipe-demo-${recipeIdSeed}`,
-    cupSize: randomChoice(CUP_SIZES),
-    temp: randomChoice(TEMPS),
-    iceLevel: randomChoice(ICE_LEVELS),
-    matcha: randomChoice(MATCHA_TYPES),
-    milk: randomChoice(MILK_TYPES),
-    flavor: randomChoice(FLAVOR_TYPES),
-    sweetener: randomChoice(SWEETENER_TYPES),
-    sweetnessLevel: randomChoice(SWEETNESS_LEVELS),
-    creamTop: randomChoice(CREAM_TOP_TYPES),
-    powder: randomChoice(POWDER_TYPES),
-  }
-}
-
-function hasSameDisplayedValues(a: Recipe, b: Recipe): boolean {
-  return DISPLAYED_RECIPE_KEYS.every((key) => a[key] === b[key])
-}
-
-function generateDifferentRecipe(previousRecipe: Recipe, recipeIdSeed: number): Recipe {
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    const candidate = generateRandomRecipe(recipeIdSeed + attempt)
-    if (!hasSameDisplayedValues(candidate, previousRecipe)) {
-      return candidate
-    }
-  }
-
-  return generateRandomRecipe(recipeIdSeed + 99)
-}
-
-const ORDER_TICKET_FIELDS: Array<{ label: string; key: keyof Omit<Recipe, 'recipeId'> }> = [
-  { label: 'Cup Size', key: 'cupSize' },
-  { label: 'Temp', key: 'temp' },
-  { label: 'Ice', key: 'iceLevel' },
-  { label: 'Matcha', key: 'matcha' },
-  { label: 'Milk', key: 'milk' },
-  { label: 'Flavor', key: 'flavor' },
-  { label: 'Sweetener', key: 'sweetener' },
-  { label: 'Sweetness', key: 'sweetnessLevel' },
-  { label: 'Cream Top', key: 'creamTop' },
-  { label: 'Powder', key: 'powder' },
-]
 
 // Customer bear layout controls (adjust these as needed)
 const CUSTOMER_BEAR_TARGET_LEFT_PCT = 60
@@ -96,6 +23,10 @@ const CUSTOMER_BEAR_START_LEFT_PCT = 50
 const CUSTOMER_BEAR_START_TOP_PCT = 55
 const CUSTOMER_BEAR_START_SIZE_SCALE = 0.72
 const CUSTOMER_BEAR_EXIT_LEFT_PCT = 120
+const ORDER_TRIGGER_CENTER_X_PCT = CUSTOMER_BEAR_START_LEFT_PCT
+const ORDER_TRIGGER_CENTER_Y_PCT = CUSTOMER_BEAR_START_TOP_PCT
+const ORDER_TRIGGER_WIDTH_PCT = 24
+const ORDER_TRIGGER_HEIGHT_PCT = 30
 
 // Sequence timing controls (milliseconds)
 const BEAR_MOVE_IN_MS = 1500
@@ -114,10 +45,18 @@ function OrderStationPage() {
   const [bearExpressionIndex, setBearExpressionIndex] = useState(0)
   const [bearTransitionMs, setBearTransitionMs] = useState(0)
   const [animationRunId, setAnimationRunId] = useState(0)
-  const [showOrderTicketText, setShowOrderTicketText] = useState(false)
-  const [revealedOrderLineCount, setRevealedOrderLineCount] = useState(0)
-  const [currentRecipe, setCurrentRecipe] = useState<Recipe>(() => generateRandomRecipe(1))
+  const {
+    ticketStore,
+    showOrderTicketText,
+    revealedOrderLineCount,
+    beginNewOrder,
+    showGeneratedOrder,
+    revealNextLine,
+    markOrderFullyRevealed,
+    swapMainWithHistory,
+  } = useOrderTicketsContext()
   const timeoutsRef = useRef<number[]>([])
+  const stationStageRef = useRef<HTMLElement | null>(null)
 
   const clearPendingTimeouts = () => {
     for (const timeoutId of timeoutsRef.current) {
@@ -132,10 +71,9 @@ function OrderStationPage() {
     }
 
     clearPendingTimeouts()
-    setCurrentRecipe((previousRecipe) => generateDifferentRecipe(previousRecipe, animationRunId))
+    const nextTicket = beginNewOrder()
+
     setBearExpressionIndex(0)
-    setShowOrderTicketText(false)
-    setRevealedOrderLineCount(0)
     setBearTransitionMs(0)
     setPhase('spawn')
 
@@ -161,14 +99,13 @@ function OrderStationPage() {
 
     schedule(() => {
       setBearExpressionIndex(0)
-      setShowOrderTicketText(true)
-      setRevealedOrderLineCount(0)
+      showGeneratedOrder(nextTicket)
       setPhase('talking')
     }, startTalkingDelayMs)
 
     schedule(() => {
       setBearExpressionIndex(0)
-      setRevealedOrderLineCount(ORDER_TICKET_FIELDS.length)
+      markOrderFullyRevealed()
       setBearTransitionMs(BEAR_EXIT_MS)
       setPhase('exiting')
     }, startExitDelayMs)
@@ -179,7 +116,7 @@ function OrderStationPage() {
     }, finishDelayMs)
 
     return clearPendingTimeouts
-  }, [animationRunId])
+  }, [animationRunId, beginNewOrder, markOrderFullyRevealed, showGeneratedOrder])
 
   useEffect(() => {
     if (phase !== 'talking') {
@@ -200,14 +137,10 @@ function OrderStationPage() {
       return
     }
 
-    const revealTimerId = window.setInterval(() => {
-      setRevealedOrderLineCount((currentCount) =>
-        Math.min(currentCount + 1, ORDER_TICKET_FIELDS.length),
-      )
-    }, ORDER_TICKET_LINE_REVEAL_INTERVAL_MS)
+    const revealTimerId = window.setInterval(revealNextLine, ORDER_TICKET_LINE_REVEAL_INTERVAL_MS)
 
     return () => window.clearInterval(revealTimerId)
-  }, [phase])
+  }, [phase, revealNextLine])
 
   const isAtCounter = phase === 'moving' || phase === 'at-counter' || phase === 'talking'
   const isExiting = phase === 'exiting'
@@ -231,10 +164,37 @@ function OrderStationPage() {
     width: `${customerBearWidthPct}%`,
     ['--order-bear-transition-ms' as string]: `${bearTransitionMs}ms`,
   }
+  const isInteractionLocked = phase !== 'idle' && phase !== 'done'
 
   const handleStageClick = (event: MouseEvent<HTMLElement>) => {
+    if (isInteractionLocked) {
+      return
+    }
+
     const clickedElement = event.target as Element
     if (clickedElement.closest('.station-dock')) {
+      return
+    }
+
+    const stageRect = stationStageRef.current?.getBoundingClientRect()
+    if (!stageRect) {
+      return
+    }
+
+    const clickXPct = ((event.clientX - stageRect.left) / stageRect.width) * 100
+    const clickYPct = ((event.clientY - stageRect.top) / stageRect.height) * 100
+
+    const leftBound = ORDER_TRIGGER_CENTER_X_PCT - ORDER_TRIGGER_WIDTH_PCT / 2
+    const rightBound = ORDER_TRIGGER_CENTER_X_PCT + ORDER_TRIGGER_WIDTH_PCT / 2
+    const topBound = ORDER_TRIGGER_CENTER_Y_PCT - ORDER_TRIGGER_HEIGHT_PCT / 2
+    const bottomBound = ORDER_TRIGGER_CENTER_Y_PCT + ORDER_TRIGGER_HEIGHT_PCT / 2
+    const isInsideTriggerZone =
+      clickXPct >= leftBound &&
+      clickXPct <= rightBound &&
+      clickYPct >= topBound &&
+      clickYPct <= bottomBound
+
+    if (!isInsideTriggerZone) {
       return
     }
 
@@ -247,7 +207,7 @@ function OrderStationPage() {
       aria-label="Order station page"
       onClick={handleStageClick}
     >
-      <section className="station-stage">
+      <section className="station-stage" ref={stationStageRef}>
         <img className="station-background" src={matchaInterior} alt="" draggable="false" />
         <img
           className="order-bear-customer"
@@ -261,23 +221,14 @@ function OrderStationPage() {
         {phase === 'talking' && (
           <img className="order-speech-bubble" src={speechBubble} alt="" draggable="false" />
         )}
-        <div className="station-order-ticket-wrap">
-          <img className="station-order-ticket" src={orderTicket} alt="" draggable="false" />
-          {showOrderTicketText && (
-            <div className="station-order-ticket-text" aria-label="Customer order details">
-              <p className="station-order-ticket-title">ORDER</p>
-              <ul className="station-order-ticket-list">
-                {ORDER_TICKET_FIELDS.slice(0, revealedOrderLineCount).map((field) => (
-                  <li key={field.key}>
-                    <span>{field.label}</span>
-                    <span>{currentRecipe[field.key]}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-        <StationDock currentStation="order" />
+        <OrderTicketBoard
+          ticketStore={ticketStore}
+          showOrderTicketText={showOrderTicketText}
+          revealedOrderLineCount={revealedOrderLineCount}
+          onHistoryTicketClick={swapMainWithHistory}
+          disabled={isInteractionLocked}
+        />
+        <StationDock currentStation="order" disabled={isInteractionLocked} />
       </section>
     </main>
   )

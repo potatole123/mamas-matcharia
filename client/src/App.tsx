@@ -10,6 +10,7 @@ import WhiskingStationPage from './pages/WhiskingStationPage'
 import ToppingStationPage from './pages/ToppingStationPage'
 import { Navigate, Routes, Route } from 'react-router-dom'
 import { useAuth } from './auth'
+import { OrderTicketsProvider } from './OrderTicketsContext'
 import './App.css'
 
 type ProtectedRouteProps = {
@@ -27,69 +28,71 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 
 function App() {
   return (
-    <div className="app-shell">
-      <Routes>
-        <Route path="/" element={<StartPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route
-          path="/home"
-          element={
-            <ProtectedRoute>
-              <HomePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/game"
-          element={
-            <ProtectedRoute>
-              <GamePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/game-summary"
-          element={
-            <ProtectedRoute>
-              <GameSummary />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/order-station"
-          element={
-            <ProtectedRoute>
-              <OrderStationPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/base-station"
-          element={
-            <ProtectedRoute>
-              <BaseStationPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/whisking-station"
-          element={
-            <ProtectedRoute>
-              <WhiskingStationPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/topping-station"
-          element={
-            <ProtectedRoute>
-              <ToppingStationPage />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-    </div>
+    <OrderTicketsProvider>
+      <div className="app-shell">
+        <Routes>
+          <Route path="/" element={<StartPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route
+            path="/home"
+            element={
+              <ProtectedRoute>
+                <HomePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/game"
+            element={
+              <ProtectedRoute>
+                <GamePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/game-summary"
+            element={
+              <ProtectedRoute>
+                <GameSummary />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/order-station"
+            element={
+              <ProtectedRoute>
+                <OrderStationPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/base-station"
+            element={
+              <ProtectedRoute>
+                <BaseStationPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/whisking-station"
+            element={
+              <ProtectedRoute>
+                <WhiskingStationPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/topping-station"
+            element={
+              <ProtectedRoute>
+                <ToppingStationPage />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </div>
+    </OrderTicketsProvider>
   )
 }
 

@@ -21,6 +21,10 @@
     transform 120ms ease;
 }
 
+.station-dock-button:disabled {
+  cursor: default;
+}
+
 .station-dock-button img {
   display: block;
   width: 100%;
@@ -37,6 +41,12 @@
 .station-dock-button:active {
   filter: brightness(0.96);
   transform: translateY(2%);
+}
+
+.station-dock-button:disabled:hover,
+.station-dock-button:disabled:active {
+  filter: none;
+  transform: none;
 }
 
 .station-dock-button:focus-visible {
