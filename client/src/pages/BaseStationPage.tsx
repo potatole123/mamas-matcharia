@@ -8,7 +8,9 @@ function BaseStationPage() {
     <main className="station-page" aria-label="Base station page">
       <section className="station-stage">
         <img className="station-background" src={stationTable} alt="" draggable="false" />
-        <img className="station-order-ticket" src={orderTicket} alt="" draggable="false" />
+        <div className="station-order-ticket-wrap">
+          <img className="station-order-ticket" src={orderTicket} alt="" draggable="false" />
+        </div>
         <StationDock currentStation="base" />
       </section>
     </main>
