@@ -8,6 +8,8 @@ import OrderStationPage from './pages/OrderStationPage'
 import BaseStationPage from './pages/BaseStationPage'
 import WhiskingStationPage from './pages/WhiskingStationPage'
 import ToppingStationPage from './pages/ToppingStationPage'
+import WaitingRoomPage from './pages/WaitingRoomPage'
+import EnterJoinCodePage from './pages/EnterJoinCodePage'
 import { Navigate, Routes, Route } from 'react-router-dom'
 import { useAuth } from './auth'
 import './App.css'
@@ -85,6 +87,22 @@ function App() {
           element={
             <ProtectedRoute>
               <ToppingStationPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/waiting-room"
+          element={
+            <ProtectedRoute>
+              <WaitingRoomPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/enter-join-code"
+          element={
+            <ProtectedRoute>
+              <EnterJoinCodePage />
             </ProtectedRoute>
           }
         />
