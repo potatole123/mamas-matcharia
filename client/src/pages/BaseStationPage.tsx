@@ -1,16 +1,26 @@
 import stationTable from '../assets/station-shared/station-table.png'
+import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
-import orderTicket from '../assets/station-shared/order-ticket.png'
+import { useOrderTicketsContext } from '../OrderTicketsContext'
 import './StationPage.css'
 
 function BaseStationPage() {
+  const { ticketStore, showOrderTicketText, revealedOrderLineCount, swapMainWithHistory } =
+    useOrderTicketsContext()
+
   return (
     <main className="station-page" aria-label="Base station page">
       <section className="station-stage">
         <img className="station-background" src={stationTable} alt="" draggable="false" />
-        <div className="station-order-ticket-wrap">
+        <OrderTicketBoard
+          ticketStore={ticketStore}
+          showOrderTicketText={showOrderTicketText}
+          revealedOrderLineCount={revealedOrderLineCount}
+          onHistoryTicketClick={swapMainWithHistory}
+        />
+        {/* <div className="station-order-ticket-wrap">
           <img className="station-order-ticket" src={orderTicket} alt="" draggable="false" />
-        </div>
+        </div> */}
         <StationDock currentStation="base" />
       </section>
     </main>

@@ -75,7 +75,7 @@ function HomePage() {
           className="home-join-multiplayer-button"
           label="Join multiplayer game"
           src={joinMultiplayerButton}
-          onClick={noop}
+          onClick={() => navigate('/enter-join-code')}
         />
       </section>
     </main>

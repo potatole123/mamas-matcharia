@@ -150,6 +150,44 @@
   text-align: right;
 }
 
+.order-ticket-history {
+  position: absolute;
+  top: 4.4%;
+  left: 2.8%;
+  right: 31%;
+  display: flex;
+  align-items: flex-start;
+  gap: 1.2%;
+  z-index: 5;
+}
+
+.order-ticket-history-item {
+  position: relative;
+  width: 11%;
+  min-width: 42px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.order-ticket-history-image {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.order-ticket-history-label {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translate(-50%, -50%);
+  color: #4f2514;
+  font-size: clamp(8px, 0.85vw, 12px);
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 35%);
+}
+
 .order-station-page .order-bearista {
   position: absolute;
   left: 2.8%;
@@ -189,6 +227,23 @@
   width: 66%;
   gap: 5%;
   z-index: 6;
+}
+
+.waiting-room-count {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.5rem 1rem;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 600;
+  font-family: 'Slate Black';
+  color: #437633;
+  /* background: rgba(255, 255, 255, 0.85); */
+  background-color: antiquewhite;
+  border-radius: 0.5rem;
+  z-index: 1;
 }
 
 
