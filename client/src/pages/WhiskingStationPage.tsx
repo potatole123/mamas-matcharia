@@ -6,7 +6,7 @@ import emptyBowl from '../assets/whisking-station/empty-bowl.png'
 import whisk from '../assets/whisking-station/whisk.png'
 import emptySpoon from '../assets/whisking-station/empty-spoon.png'
 import kettle from '../assets/whisking-station/kettle.png'
-import matchaScale from '../assets/whisking-station/matcha-scale.png'
+import matchaScaleZero from '../assets/whisking-station/matcha-scale-zero.png'
 import matchaTin from '../assets/whisking-station/matcha-tin.png'
 import './StationPage.css'
 
@@ -24,7 +24,7 @@ function WhiskingStationPage() {
           revealedOrderLineCount={revealedOrderLineCount}
           onHistoryTicketClick={swapMainWithHistory}
         />
-        <img className="matcha-scale" src={matchaScale} alt="" draggable="false" />
+        <img className="matcha-scale" src={matchaScaleZero} alt="" draggable="false" />
         <img className="whisking-empty-bowl" src={emptyBowl} alt="" draggable="false" />
         <img className="whisking-whisk" src={whisk} alt="" draggable="false" />
         <img className="whisking-empty-spoon" src={emptySpoon} alt="" draggable="false" />
