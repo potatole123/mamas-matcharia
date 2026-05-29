@@ -25,6 +25,16 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  z-index: 0;
+}
+
+.order-station-page .order-counter {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: auto;
+  z-index: 2;
 }
 
 .station-order-ticket {
@@ -33,6 +43,7 @@
   right: 3.2%;
   width: 24%;
   height: auto;
+  z-index: 5;
 }
 
 .order-station-page .order-bearista {
@@ -41,30 +52,39 @@
   bottom: 0%;
   width: 29%;
   height: auto;
+  z-index: 3;
 }
 
 .order-station-page .order-bear-customer,
 .order-station-page .order-bear-smile {
   position: absolute;
-  left: 60%;
-  top: 59%;
-  width: 20%;
   height: auto;
   transform: translate(-50%, -50%);
+  z-index: 1;
+  transition:
+    left var(--order-bear-transition-ms, 0ms) ease-in-out,
+    top var(--order-bear-transition-ms, 0ms) ease-in-out,
+    width var(--order-bear-transition-ms, 0ms) ease-in-out;
 }
 
 .order-station-page .order-speech-bubble {
   position: absolute;
-  left: 31%;
+  left: 33%;
   top: 15%;
   width: 30%;
   height: auto;
   animation: order-speech-bob 900ms ease-in-out infinite;
+  z-index: 4;
 }
 
 .station-dock {
+  position: absolute;
+  left: 50%;
+  bottom: 4.2%;
+  transform: translateX(-50%);
   width: 66%;
   gap: 5%;
+  z-index: 6;
 }
 
 
