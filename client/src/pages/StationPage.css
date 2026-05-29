@@ -169,6 +169,23 @@
   z-index: 6;
 }
 
+.waiting-room-count {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0.5rem 1rem;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  font-weight: 600;
+  font-family: 'Slate Black';
+  color: #437633;
+  /* background: rgba(255, 255, 255, 0.85); */
+  background-color: antiquewhite;
+  border-radius: 0.5rem;
+  z-index: 1;
+}
+
 
 @media (max-aspect-ratio: 6844 / 5100) {
   .station-stage {
