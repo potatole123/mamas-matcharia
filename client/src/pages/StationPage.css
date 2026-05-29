@@ -37,13 +37,57 @@
   z-index: 2;
 }
 
-.station-order-ticket {
+.station-order-ticket-wrap {
   position: absolute;
   top: 3%;
   right: 3.2%;
   width: 24%;
-  height: auto;
   z-index: 5;
+}
+
+.station-order-ticket {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.station-order-ticket-text {
+  position: absolute;
+  top: 16.5%;
+  right: 14%;
+  bottom: 10%;
+  left: 16%;
+  color: #4f2514;
+  font-size: clamp(13px, 0.85vw, 15px);
+  font-weight: 700;
+  line-height: 2.4;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 35%);
+  pointer-events: none;
+}
+
+.station-order-ticket-title {
+  margin: 0 0 6% 0;
+  text-align: center;
+  font-size: 1.1em;
+  letter-spacing: 0.07em;
+}
+
+.station-order-ticket-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.station-order-ticket-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.2em;
+  margin: 0 0 2.8% 0;
+  text-transform: capitalize;
+}
+
+.station-order-ticket-list li span:last-child {
+  text-align: right;
 }
 
 .order-station-page .order-bearista {
