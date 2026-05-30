@@ -18,6 +18,9 @@ function BaseStationPage() {
           revealedOrderLineCount={revealedOrderLineCount}
           onHistoryTicketClick={swapMainWithHistory}
         />
+        {/* <div className="station-order-ticket-wrap">
+          <img className="station-order-ticket" src={orderTicket} alt="" draggable="false" />
+        </div> */}
         <StationDock currentStation="base" />
       </section>
     </main>

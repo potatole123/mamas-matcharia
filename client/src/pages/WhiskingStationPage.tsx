@@ -2,6 +2,12 @@ import stationTable from '../assets/station-shared/station-table.png'
 import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
+import emptyBowl from '../assets/whisking-station/empty-bowl.png'
+import whisk from '../assets/whisking-station/whisk.png'
+import emptySpoon from '../assets/whisking-station/empty-spoon.png'
+import kettle from '../assets/whisking-station/kettle.png'
+import matchaScaleZero from '../assets/whisking-station/matcha-scale-zero.png'
+import matchaTin from '../assets/whisking-station/matcha-tin.png'
 import './StationPage.css'
 
 function WhiskingStationPage() {
@@ -18,6 +24,12 @@ function WhiskingStationPage() {
           revealedOrderLineCount={revealedOrderLineCount}
           onHistoryTicketClick={swapMainWithHistory}
         />
+        <img className="matcha-scale" src={matchaScaleZero} alt="" draggable="false" />
+        <img className="whisking-empty-bowl" src={emptyBowl} alt="" draggable="false" />
+        <img className="whisking-whisk" src={whisk} alt="" draggable="false" />
+        <img className="whisking-empty-spoon" src={emptySpoon} alt="" draggable="false" />
+        <img className="whisking-kettle" src={kettle} alt="" draggable="false" />
+        <img className="whisking-matcha-tin" src={matchaTin} alt="" draggable="false" />
         <StationDock currentStation="whisking" />
       </section>
     </main>

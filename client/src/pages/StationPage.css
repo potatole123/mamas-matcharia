@@ -28,6 +28,66 @@
   z-index: 0;
 }
 
+.whisking-empty-bowl {
+  position: absolute;
+  left: 55%;
+  bottom: 37%;
+  transform: translateX(-50%);
+  width: 26%;
+  height: auto;
+  z-index: 2;
+}
+
+.matcha-scale {
+  position: absolute;
+  left: 55%;
+  bottom: 27%;
+  transform: translateX(-50%);
+  width: 30%;
+  height: auto;
+  z-index: 1;
+}
+
+.whisking-whisk {
+  position: absolute;
+  left: 15%;
+  bottom: 57%;
+  transform: translateX(-50%);
+  width: 13%;
+  height: auto;
+  z-index: 3;
+}
+
+.whisking-empty-spoon {
+  position: absolute;
+  left: 30%;
+  bottom: 42%;
+  width: 5%;
+  height: auto;
+  z-index: 4;
+  transform: scaleX(-1) rotate(90deg);
+}
+
+.whisking-kettle {
+  position: absolute;
+  left: 15%;
+  bottom: 20%;
+  transform: translateX(-50%);
+  width: 25%;
+  height: auto;
+  z-index: 3;
+}
+
+.whisking-matcha-tin {
+  position: absolute;
+  left: 28%;
+  bottom: 40%;
+  transform: translateX(-50%);
+  width: 17%;
+  height: auto;
+  z-index: 3;
+}
+
 .order-station-page .order-counter {
   position: absolute;
   left: 0;
