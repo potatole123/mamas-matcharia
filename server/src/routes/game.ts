@@ -7,17 +7,17 @@ import {
   deleteSinglePlayerGame,
   generateNPCs,
   joinMultiplayerGame,
-  updateProfile,
+  submitGameResults,
 } from "../controllers/gameController"
 
 const router = Router()
 
-router.post("/singleplayer/startGame", authenticate, createSinglePlayerGame)
-router.delete("/singleplayer/deleteGame", authenticate, deleteSinglePlayerGame)
-router.post("/multiplayer/startGame", authenticate, createMultiplayerGame)
-router.post("/multiplayer/joinGame", authenticate, joinMultiplayerGame)
-router.delete("/multiplayer/deleteGame", authenticate, deleteMultiplayerGame)
-router.post("/general/npcGenerate", authenticate, generateNPCs)
-router.put("/general/updateProfile", authenticate, updateProfile)
+router.post("/singleplayer", authenticate, createSinglePlayerGame)
+router.delete("/singleplayer/current", authenticate, deleteSinglePlayerGame)
+router.post("/multiplayer", authenticate, createMultiplayerGame)
+router.post("/multiplayer/join", authenticate, joinMultiplayerGame)
+router.delete("/multiplayer/current", authenticate, deleteMultiplayerGame)
+router.post("/npcs", authenticate, generateNPCs)
+router.post("/results", authenticate, submitGameResults)
 
 export default router
