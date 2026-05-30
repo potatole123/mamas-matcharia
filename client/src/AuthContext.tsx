@@ -15,9 +15,21 @@ import {
 } from 'firebase/auth'
 
 import { AuthContext } from './auth'
+import { Fetch } from './Fetch'
 import { auth, isFirebaseConfigured } from './firebase'
 
 const firebaseConfigError = new Error('Firebase is not configured. Add the VITE_FIREBASE_* values to client/.env.')
+
+type AuthSessionPayload = {
+  user: {
+    userId: string
+    email: string
+    username: string
+  }
+  profile: {
+    displayName: string
+  } | null
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -35,41 +47,102 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    if (!auth) {
+    const firebaseAuth = auth
+
+    if (!firebaseAuth) {
       return undefined
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    let isSubscribed = true
+
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
+      if (!isSubscribed) {
+        return
+      }
+
       setUser(user)
-      setUsername(user?.email?.split('@')[0] ?? null)
-      setLoading(false)
+
+      if (!user) {
+        setUsername(null)
+        setLoading(false)
+        return
+      }
+
+      try {
+        await syncBackendSession(user)
+      } catch {
+        await signOut(firebaseAuth)
+      } finally {
+        if (isSubscribed) {
+          setLoading(false)
+        }
+      }
     })
-    return () => unsubscribe()
+
+    return () => {
+      isSubscribed = false
+      unsubscribe()
+    }
   }, [])
 
-  function signInGoogle() {
+  async function syncBackendSession(firebaseUser: User) {
+    const token = await firebaseUser.getIdToken()
+    const session = await Fetch<AuthSessionPayload>('/api/authentication/login', {
+      method: 'POST',
+      token,
+    })
+
+    setUsername(session.profile?.displayName ?? session.user.username)
+    return session
+  }
+
+  async function signInGoogle() {
     if (!auth || !isFirebaseConfigured) {
       return Promise.reject(firebaseConfigError)
     }
 
     const gProvider = new GoogleAuthProvider()
-    return signInWithPopup(auth, gProvider)
+    const credential = await signInWithPopup(auth, gProvider)
+
+    try {
+      await syncBackendSession(credential.user)
+      return credential
+    } catch (error) {
+      await signOut(auth)
+      throw error
+    }
   }
 
-  function signUp(email: string, password: string) {
+  async function signUp(email: string, password: string) {
     if (!auth || !isFirebaseConfigured) {
       return Promise.reject(firebaseConfigError)
     }
 
-    return createUserWithEmailAndPassword(auth, email, password)
+    const credential = await createUserWithEmailAndPassword(auth, email, password)
+
+    try {
+      await syncBackendSession(credential.user)
+      return credential
+    } catch (error) {
+      await signOut(auth)
+      throw error
+    }
   }
 
-  function login(email: string, password: string) {
+  async function login(email: string, password: string) {
     if (!auth || !isFirebaseConfigured) {
       return Promise.reject(firebaseConfigError)
     }
 
-    return signInWithEmailAndPassword(auth, email, password)
+    const credential = await signInWithEmailAndPassword(auth, email, password)
+
+    try {
+      await syncBackendSession(credential.user)
+      return credential
+    } catch (error) {
+      await signOut(auth)
+      throw error
+    }
   }
 
   function logout() {
