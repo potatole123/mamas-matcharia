@@ -8,6 +8,13 @@ const JOIN_CODE_PATTERN = /^\d{6}$/
 const MAX_GROUP_CODE_ATTEMPTS = 10
 const MAX_RANDOM_SEED = 123_456_789
 
+type ProfileUpdates = {
+  displayName?: string
+  coinBalance?: number
+  highestDayUnlocked?: number
+  tutorialCompleted?: boolean
+}
+
 class BadRequestError extends Error {
   constructor(message: string) {
     super(message)
@@ -90,6 +97,26 @@ function serializeSession(session: {
   }
 }
 
+function serializeProfile(profile: {
+  userId: string
+  displayName: string
+  coinBalance: number
+  highestDayUnlocked: number
+  tutorialCompleted: boolean
+  createdAt: Date
+  updatedAt: Date
+}) {
+  return {
+    userId: profile.userId,
+    displayName: profile.displayName,
+    coinBalance: profile.coinBalance,
+    highestDayUnlocked: profile.highestDayUnlocked,
+    tutorialCompleted: profile.tutorialCompleted,
+    createdAt: profile.createdAt,
+    updatedAt: profile.updatedAt,
+  }
+}
+
 function serializeMultiplayerGame(game: {
   _id: unknown
   creatorId: string
@@ -160,6 +187,58 @@ function parseGroupCode(reqBody: unknown, required: boolean) {
 
 function hasSameObjectId(left: unknown, right: unknown) {
   return String(left) === String(right)
+}
+
+function parseProfileUpdates(reqBody: unknown) {
+  const body = getRequestBody(reqBody)
+  const updates: ProfileUpdates = {}
+
+  if ("displayName" in body) {
+    const displayName = body.displayName
+
+    if (typeof displayName !== "string" || displayName.trim().length === 0) {
+      throw new BadRequestError("displayName must be a non-empty string")
+    }
+    updates.displayName = displayName.trim()
+  }
+
+  if ("coinBalance" in body) {
+    const coinBalance = body.coinBalance
+
+    if (typeof coinBalance !== "number" || !Number.isFinite(coinBalance) || coinBalance < 0) {
+      throw new BadRequestError("coinBalance must be a non-negative number")
+    }
+    updates.coinBalance = coinBalance
+  }
+
+  if ("highestDayUnlocked" in body) {
+    const highestDayUnlocked = body.highestDayUnlocked
+
+    if (
+        typeof highestDayUnlocked !== "number" ||
+        !Number.isInteger(highestDayUnlocked) ||
+        highestDayUnlocked < 1
+    ) {
+      throw new BadRequestError(
+          "highestDayUnlocked must be an integer greater than or equal to 1",
+      )
+    }
+    updates.highestDayUnlocked = highestDayUnlocked
+  }
+
+  if ("tutorialCompleted" in body) {
+    const tutorialCompleted = body.tutorialCompleted
+
+    if (typeof tutorialCompleted !== "boolean") {
+      throw new BadRequestError("tutorialCompleted must be a boolean")
+    }
+    updates.tutorialCompleted = tutorialCompleted
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new BadRequestError("At least one profile field is required")
+  }
+  return updates
 }
 
 export const createSinglePlayerGame: RequestHandler = async (req, res) => {
@@ -541,6 +620,46 @@ export const generateNPCs: RequestHandler = async (_req, res) => {
   res.sendStatus(501)
 }
 
-export const submitGameResults: RequestHandler = async (_req, res) => {
-  res.sendStatus(501)
+export const submitGameResults: RequestHandler = async (req, res) => {
+  const userId = req.user?.uid
+
+  if (!userId) {
+    return res.status(401).json({
+      error: "Unauthorized",
+    })
+  }
+
+  try {
+    const updates = parseProfileUpdates(req.body)
+    const profile = await ProfileModel.findOneAndUpdate(
+        { userId },
+        {
+          $set: updates,
+        },
+        {
+          new: true,
+          runValidators: true,
+        },
+    )
+
+    if (!profile) {
+      return res.status(404).json({
+        error: "User profile was not found",
+      })
+    }
+
+    return res.status(200).json({
+      profile: serializeProfile(profile),
+    })
+  } catch (err) {
+    if (err instanceof BadRequestError) {
+      return res.status(400).json({
+        error: err.message,
+      })
+    }
+    console.error(err)
+    return res.status(500).json({
+      error: "Could not submit game results",
+    })
+  }
 }
