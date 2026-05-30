@@ -541,6 +541,6 @@ export const generateNPCs: RequestHandler = async (_req, res) => {
   res.sendStatus(501)
 }
 
-export const updateProfile: RequestHandler = async (_req, res) => {
+export const submitGameResults: RequestHandler = async (_req, res) => {
   res.sendStatus(501)
 }
