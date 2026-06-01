@@ -308,7 +308,10 @@ function createRandomSeed() {
 
 function parseNpcSeed(reqBody: unknown) {
   const body = getRequestBody(reqBody)
-  const seed = body.npcSeed ?? body.seed
+  const seed =
+      Object.prototype.hasOwnProperty.call(body, "npcSeed")
+        ? body.npcSeed
+        : body.seed
 
   if (seed === undefined) {
     return createRandomSeed()
@@ -554,7 +557,10 @@ async function createUniqueGroupCode() {
 
 function parseGroupCode(reqBody: unknown, required: boolean) {
   const body = getRequestBody(reqBody)
-  const value = body.groupCode ?? body.joinCode
+  const value =
+      Object.prototype.hasOwnProperty.call(body, "groupCode")
+        ? body.groupCode
+        : body.joinCode
 
   if (value === undefined) {
     if (required) {
@@ -801,24 +807,16 @@ export const deleteSinglePlayerGame: RequestHandler = async (req, res) => {
     })
 
     if (!game) {
-      return res.status(404).json({
-        error: "Single-player game was not found",
-      })
+      return res.sendStatus(204)
     }
 
     await Promise.all([
       SinglePlayerGameStateModel.deleteOne({ _id: game._id }),
-      SessionModel.updateOne(
+      SessionModel.deleteOne(
           {
             _id: game.session,
             activeGame: game._id,
             activeGameModel: "SinglePlayerGameState",
-          },
-          {
-            $set: {
-              activeGame: null,
-              activeGameModel: null,
-            },
           },
       ),
     ])
@@ -1043,9 +1041,7 @@ export const deleteMultiplayerGame: RequestHandler = async (req, res) => {
     }
 
     if (!game) {
-      return res.status(404).json({
-        error: "Multiplayer game was not found",
-      })
+      return res.sendStatus(204)
     }
 
     const affectedUserIds = Array.from(
@@ -1059,19 +1055,13 @@ export const deleteMultiplayerGame: RequestHandler = async (req, res) => {
 
     await Promise.all([
       MultiplayerGameStateModel.deleteOne({ _id: game._id }),
-      SessionModel.updateMany(
+      SessionModel.deleteMany(
           {
             profile: {
               $in: affectedProfiles.map((affectedProfile) => affectedProfile._id),
             },
             activeGame: game._id,
             activeGameModel: "MultiplayerGameState",
-          },
-          {
-            $set: {
-              activeGame: null,
-              activeGameModel: null,
-            },
           },
       ),
     ])
