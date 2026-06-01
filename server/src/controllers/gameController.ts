@@ -4,10 +4,17 @@ import { SinglePlayerGameStateModel } from "../models/singlePlayerGameState"
 import type { RequestHandler } from "express"
 import { MultiplayerGameStateModel } from "../models/multiplayerGameState"
 import type { HydratedDocument } from "mongoose"
+import {
+  buildFullRecipeSet,
+  buildRecipeSetForUnlockedLevel,
+  getLevelConfig,
+  type LevelConfig,
+  type RecipeSetInput,
+} from "../gameProgression"
 import { CustomerOrderModel } from "../models/customerOrder"
 import { NPCModel, type NPC } from "../models/npc"
 import { RecipeModel, type Recipe } from "../models/recipe"
-import type { RecipeSet } from "../models/recipeSet"
+import { RecipeSetModel } from "../models/recipeSet"
 import {
   CREAM_TOP,
   CUP_SIZE,
@@ -23,41 +30,34 @@ import {
 
 const JOIN_CODE_PATTERN = /^\d{6}$/
 const MAX_GROUP_CODE_ATTEMPTS = 10
+const MAX_MULTIPLAYER_PLAYERS = 6
 const MAX_RANDOM_SEED = 123_456_789
-const MIN_NPC_FREQUENCY_SECONDS = 2
-const MAX_NPC_FREQUENCY_SECONDS = 6
-const DEFAULT_NPC_COUNT = 5
 const MAX_NPC_COUNT = 20
 const ORDER_EXPIRATION_SECONDS = 90
 
-type ProfileUpdates = {
-  displayName?: string
-  coinBalance?: number
-  highestDayUnlocked?: number
-  tutorialCompleted?: boolean
+type DayStartBody = {
+  level?: unknown
 }
 
-type RecipeSetInput = Partial<
-  Pick<
-    RecipeSet,
-    | "cupSizeSet"
-    | "tempSet"
-    | "iceLevelSet"
-    | "matchaSet"
-    | "milkSet"
-    | "flavorSet"
-    | "sweetenerSet"
-    | "sweetnessLevelSet"
-    | "creamTopSet"
-    | "powderSet"
-  >
->
+const MULTIPLAYER_LEVEL = 1
 
-type NpcGenerateBody = {
-  seed?: unknown
-  freq?: unknown
-  count?: unknown
-  recipeSet?: unknown
+type LevelResultsBody = {
+  dayScore?: unknown
+  waitingScore?: unknown
+  accuracyScore?: unknown
+  measurementScore?: unknown
+  toppingScore?: unknown
+  totalScore?: unknown
+  tipsEarned?: unknown
+}
+
+type DayScoreInput = {
+  waitingScore?: unknown
+  accuracyScore?: unknown
+  measurementScore?: unknown
+  toppingScore?: unknown
+  totalScore?: unknown
+  tipsEarned?: unknown
 }
 
 class BadRequestError extends Error {
@@ -99,33 +99,28 @@ function assertInteger(value: unknown, fieldName: string) {
   return numberValue
 }
 
-function normalizeNpcCount(value: unknown) {
-  if (value === undefined) {
-    return DEFAULT_NPC_COUNT
+function assertNonNegativeInteger(value: unknown, fieldName: string) {
+  const numberValue = assertInteger(value, fieldName)
+
+  if (numberValue < 0) {
+    throw new BadRequestError(`${fieldName} must be a non-negative integer`)
   }
 
-  const count = assertInteger(value, "count")
-
-  if (count < 1 || count > MAX_NPC_COUNT) {
-    throw new BadRequestError(`count must be between 1 and ${MAX_NPC_COUNT}`)
-  }
-
-  return count
+  return numberValue
 }
 
-function normalizeNpcFrequency(value: unknown) {
-  const frequency = assertFiniteNumber(value, "freq")
+function normalizeLevel(value: unknown) {
+  const level = assertInteger(value, "level")
 
-  if (
-      frequency < MIN_NPC_FREQUENCY_SECONDS ||
-      frequency > MAX_NPC_FREQUENCY_SECONDS
-  ) {
-    throw new BadRequestError(
-        `freq must be between ${MIN_NPC_FREQUENCY_SECONDS} and ${MAX_NPC_FREQUENCY_SECONDS}`,
-    )
+  if (level < 1) {
+    throw new BadRequestError("level must be an integer greater than or equal to 1")
   }
 
-  return frequency
+  return level
+}
+
+function getDaySeed(npcSeed: number, level: number) {
+  return npcSeed + level * 10_000
 }
 
 function makeSeededRandom(seed: number) {
@@ -212,6 +207,85 @@ function buildRecipe(
   }
 }
 
+async function createDayNpcs(
+    activeGameId: string,
+    level: number,
+    seed: number,
+    config: LevelConfig,
+) {
+  const random = makeSeededRandom(seed)
+  const recipeSet = normalizeRecipeSet(config.recipeSet)
+  const batchId = `${activeGameId}-${level}-${Date.now()}`
+  const baseNumberId = Date.now() * 1000 + Math.abs(seed % 1000)
+  const now = Date.now()
+  const npcs = []
+
+  for (let index = 0; index < config.npcCount; index += 1) {
+    const numberId = baseNumberId + index
+    const enterTime = new Date(now)
+    const expirationTime = new Date(
+        enterTime.getTime() + ORDER_EXPIRATION_SECONDS * 1000,
+    )
+    const recipe = await RecipeModel.create(
+        buildRecipe(`game-${batchId}-recipe-${index + 1}`, recipeSet, random),
+    )
+    const order = await CustomerOrderModel.create({
+      orderId: numberId,
+      recipe: recipe._id,
+      expirationTime,
+      status: "waiting",
+    })
+    const npc = await NPCModel.create({
+      npcId: numberId,
+      order: order._id,
+      enterTime,
+    })
+    const populatedNpc = await npc.populate({
+      path: "order",
+      populate: { path: "recipe" },
+    })
+
+    npcs.push(serializeDayNpc(populatedNpc))
+  }
+
+  return npcs
+}
+
+function serializeDayNpc(npc: HydratedDocument<NPC>) {
+  const payload = npc.toObject({
+    depopulate: false,
+    flattenObjectIds: true,
+    versionKey: false,
+  }) as unknown as {
+    npcId: number
+    order?: {
+      orderId: number
+      recipe?: Partial<Recipe>
+    }
+  }
+  const recipe = payload.order?.recipe ?? {}
+
+  return {
+    npcId: payload.npcId,
+    order: {
+      orderId: payload.order?.orderId,
+      recipe: {
+        recipeId: recipe.recipeId,
+        cupSize: recipe.cupSize,
+        temp: recipe.temp,
+        iceLevel: recipe.iceLevel,
+        matcha: recipe.matcha,
+        milk: recipe.milk,
+        flavor: recipe.flavor,
+        sweetener: recipe.sweetener,
+        sweetnessLevel: recipe.sweetnessLevel,
+        creamTop: recipe.creamTop,
+        powder: recipe.powder,
+      },
+    },
+  }
+}
+
 function serializeNpc(npc: HydratedDocument<NPC>) {
   const payload = npc.toObject({
     depopulate: false,
@@ -276,6 +350,7 @@ function serializeSession(session: {
   profile: unknown
   activeGame?: unknown
   activeGameModel?: string | null
+  activeLevel?: number | null
   createdAt: Date
   updatedAt: Date
 }) {
@@ -284,6 +359,7 @@ function serializeSession(session: {
     profile: String(session.profile),
     activeGame: session.activeGame ? String(session.activeGame) : null,
     activeGameModel: session.activeGameModel ?? null,
+    activeLevel: session.activeLevel ?? null,
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
   }
@@ -295,6 +371,7 @@ function serializeProfile(profile: {
   coinBalance: number
   highestDayUnlocked: number
   tutorialCompleted: boolean
+  recipeSet?: unknown
   createdAt: Date
   updatedAt: Date
 }) {
@@ -304,9 +381,55 @@ function serializeProfile(profile: {
     coinBalance: profile.coinBalance,
     highestDayUnlocked: profile.highestDayUnlocked,
     tutorialCompleted: profile.tutorialCompleted,
+    recipeSet: serializeProfileRecipeSet(profile.recipeSet),
     createdAt: profile.createdAt,
     updatedAt: profile.updatedAt,
   }
+}
+
+function serializeProfileRecipeSet(recipeSet: unknown) {
+  if (typeof recipeSet !== "object" || recipeSet === null) {
+    return recipeSet ? String(recipeSet) : null
+  }
+
+  if (!("cupSizeSet" in recipeSet)) {
+    return "_id" in recipeSet ? String(recipeSet._id) : null
+  }
+
+  const payload = recipeSet as Record<string, unknown>
+
+  return {
+    id: "_id" in payload ? String(payload._id) : undefined,
+    cupSizeSet: payload.cupSizeSet,
+    tempSet: payload.tempSet,
+    iceLevelSet: payload.iceLevelSet,
+    matchaSet: payload.matchaSet,
+    milkSet: payload.milkSet,
+    flavorSet: payload.flavorSet,
+    sweetenerSet: payload.sweetenerSet,
+    sweetnessLevelSet: payload.sweetnessLevelSet,
+    creamTopSet: payload.creamTopSet,
+    powderSet: payload.powderSet,
+  }
+}
+
+async function updateProfileRecipeSet(profile: {
+  recipeSet?: unknown
+  highestDayUnlocked: number
+}) {
+  const recipeSet = buildRecipeSetForUnlockedLevel(profile.highestDayUnlocked)
+
+  if (profile.recipeSet) {
+    await RecipeSetModel.findByIdAndUpdate(
+        profile.recipeSet,
+        { $set: recipeSet },
+        { runValidators: true },
+    )
+    return
+  }
+
+  const createdRecipeSet = await RecipeSetModel.create(recipeSet)
+  profile.recipeSet = createdRecipeSet._id
 }
 
 function serializeMultiplayerGame(game: {
@@ -332,6 +455,82 @@ function serializeMultiplayerGame(game: {
     npcSeed: game.npcSeed,
     createdAt: game.createdAt,
     updatedAt: game.updatedAt,
+  }
+}
+
+async function getActiveGameInfo(session: {
+  activeGame?: unknown
+  activeGameModel?: string | null
+}) {
+  if (!session.activeGame || !session.activeGameModel) {
+    return null
+  }
+
+  if (session.activeGameModel === "SinglePlayerGameState") {
+    const game = await SinglePlayerGameStateModel.findById(session.activeGame)
+
+    if (!game) {
+      return null
+    }
+
+    return {
+      gameId: String(game._id),
+      mode: "singleplayer",
+      npcSeed: game.npcSeed,
+    }
+  }
+
+  if (session.activeGameModel === "MultiplayerGameState") {
+    const game = await MultiplayerGameStateModel.findById(session.activeGame)
+
+    if (!game) {
+      return null
+    }
+
+    return {
+      gameId: String(game._id),
+      mode: "multiplayer",
+      npcSeed: game.npcSeed,
+    }
+  }
+
+  return null
+}
+
+async function appendDayResult(
+    session: {
+      activeGame?: unknown
+      activeGameModel?: string | null
+    },
+    dayResult: {
+      level: number
+      waitingScore: number
+      accuracyScore: number
+      measurementScore: number
+      toppingScore: number
+      totalScore: number
+      tipsEarned: number
+      passed: boolean
+      completedAt: Date
+    },
+) {
+  if (!session.activeGame || !session.activeGameModel) {
+    return
+  }
+
+  if (session.activeGameModel === "SinglePlayerGameState") {
+    await SinglePlayerGameStateModel.updateOne(
+        { _id: session.activeGame },
+        { $push: { results: dayResult } },
+    )
+    return
+  }
+
+  if (session.activeGameModel === "MultiplayerGameState") {
+    await MultiplayerGameStateModel.updateOne(
+        { _id: session.activeGame },
+        { $push: { results: dayResult } },
+    )
   }
 }
 
@@ -381,56 +580,129 @@ function hasSameObjectId(left: unknown, right: unknown) {
   return String(left) === String(right)
 }
 
-function parseProfileUpdates(reqBody: unknown) {
-  const body = getRequestBody(reqBody)
-  const updates: ProfileUpdates = {}
+function parseDayScore(reqBody: unknown) {
+  const body = getRequestBody(reqBody) as LevelResultsBody
+  const rawDayScore = body.dayScore === undefined ? body : body.dayScore
+  const dayScore = getRequestBody(rawDayScore) as DayScoreInput
+  const waitingScore = assertNonNegativeInteger(
+      dayScore.waitingScore,
+      "dayScore.waitingScore",
+  )
+  const accuracyScore = assertNonNegativeInteger(
+      dayScore.accuracyScore,
+      "dayScore.accuracyScore",
+  )
+  const measurementScore = assertNonNegativeInteger(
+      dayScore.measurementScore,
+      "dayScore.measurementScore",
+  )
+  const toppingScore = assertNonNegativeInteger(
+      dayScore.toppingScore,
+      "dayScore.toppingScore",
+  )
+  const totalScore = assertNonNegativeInteger(
+      dayScore.totalScore,
+      "dayScore.totalScore",
+  )
+  const tipsEarned = assertFiniteNumber(dayScore.tipsEarned, "dayScore.tipsEarned")
 
-  if ("displayName" in body) {
-    const displayName = body.displayName
+  if (tipsEarned < 0) {
+    throw new BadRequestError("dayScore.tipsEarned must be non-negative")
+  }
 
-    if (typeof displayName !== "string" || displayName.trim().length === 0) {
-      throw new BadRequestError("displayName must be a non-empty string")
+  return {
+    waitingScore,
+    accuracyScore,
+    measurementScore,
+    toppingScore,
+    totalScore,
+    tipsEarned,
+  }
+}
+
+export const startGameDay: RequestHandler = async (req, res) => {
+  const userId = req.user?.uid
+
+  if (!userId) {
+    return res.status(401).json({
+      error: "Unauthorized",
+    })
+  }
+
+  try {
+    const body = (req.body ?? {}) as DayStartBody
+    const profile = await ProfileModel.findOne({ userId })
+
+    if (!profile) {
+      return res.status(404).json({
+        error: "User profile was not found",
+      })
     }
-    updates.displayName = displayName.trim()
-  }
 
-  if ("coinBalance" in body) {
-    const coinBalance = body.coinBalance
+    const session = await SessionModel.findOne({ profile: profile._id })
 
-    if (typeof coinBalance !== "number" || !Number.isFinite(coinBalance) || coinBalance < 0) {
-      throw new BadRequestError("coinBalance must be a non-negative number")
+    if (!session?.activeGame) {
+      return res.status(409).json({
+        error: "User does not have an active game",
+      })
     }
-    updates.coinBalance = coinBalance
-  }
 
-  if ("highestDayUnlocked" in body) {
-    const highestDayUnlocked = body.highestDayUnlocked
+    const activeGame = await getActiveGameInfo(session)
 
-    if (
-        typeof highestDayUnlocked !== "number" ||
-        !Number.isInteger(highestDayUnlocked) ||
-        highestDayUnlocked < 1
-    ) {
-      throw new BadRequestError(
-          "highestDayUnlocked must be an integer greater than or equal to 1",
-      )
+    if (!activeGame) {
+      return res.status(404).json({
+        error: "Active game was not found",
+      })
     }
-    updates.highestDayUnlocked = highestDayUnlocked
-  }
 
-  if ("tutorialCompleted" in body) {
-    const tutorialCompleted = body.tutorialCompleted
+    const level =
+        activeGame.mode === "multiplayer"
+          ? MULTIPLAYER_LEVEL
+          : body.level === undefined
+            ? profile.highestDayUnlocked
+            : normalizeLevel(body.level)
 
-    if (typeof tutorialCompleted !== "boolean") {
-      throw new BadRequestError("tutorialCompleted must be a boolean")
+    if (activeGame.mode === "singleplayer" && level > profile.highestDayUnlocked) {
+      return res.status(403).json({
+        error: "Level is locked",
+      })
     }
-    updates.tutorialCompleted = tutorialCompleted
-  }
 
-  if (Object.keys(updates).length === 0) {
-    throw new BadRequestError("At least one profile field is required")
+    const config = getLevelConfig(level)
+    const dayConfig =
+        activeGame.mode === "multiplayer"
+          ? {
+              ...config,
+              recipeSet: buildFullRecipeSet(),
+            }
+          : config
+    const seed = getDaySeed(activeGame.npcSeed, level)
+    session.activeLevel = level
+    await session.save()
+
+    return res.status(200).json({
+      day: {
+        level,
+        mode: activeGame.mode,
+        gameId: activeGame.gameId,
+        seed,
+        targetScore: dayConfig.targetScore,
+        npcCount: dayConfig.npcCount,
+      },
+      npcs: await createDayNpcs(activeGame.gameId, level, seed, dayConfig),
+    })
+  } catch (err) {
+    if (err instanceof BadRequestError) {
+      return res.status(400).json({
+        error: err.message,
+      })
+    }
+
+    console.error(err)
+    return res.status(500).json({
+      error: "Could not start game day",
+    })
   }
-  return updates
 }
 
 export const createSinglePlayerGame: RequestHandler = async (req, res) => {
@@ -663,6 +935,15 @@ export const joinMultiplayerGame: RequestHandler = async (req, res) => {
       })
     }
 
+    if (
+        !game.playerIds.includes(userId) &&
+        game.playerIds.length >= MAX_MULTIPLAYER_PLAYERS
+    ) {
+      return res.status(409).json({
+        error: "Multiplayer game is full",
+      })
+    }
+
     let session = await SessionModel.findOne({ profile: profile._id })
 
     if (session?.activeGame) {
@@ -808,69 +1089,6 @@ export const deleteMultiplayerGame: RequestHandler = async (req, res) => {
   }
 }
 
-export const generateNPCs: RequestHandler = async (req, res) => {
-  try {
-    const body = (req.body ?? {}) as NpcGenerateBody
-    const seed = assertInteger(body.seed, "seed")
-    const freq = normalizeNpcFrequency(body.freq)
-    const count = normalizeNpcCount(body.count)
-    const recipeSet = normalizeRecipeSet(body.recipeSet)
-    const random = makeSeededRandom(seed)
-    const batchId = `${Date.now()}-${Math.abs(seed)}`
-    const baseNumberId = Date.now() * 1000 + Math.abs(seed % 1000)
-    const now = Date.now()
-    const npcs = []
-
-    for (let index = 0; index < count; index += 1) {
-      const numberId = baseNumberId + index
-      const enterTime = new Date(now + index * freq * 1000)
-      const expirationTime = new Date(
-          enterTime.getTime() + ORDER_EXPIRATION_SECONDS * 1000,
-      )
-      const recipe = await RecipeModel.create(
-          buildRecipe(`recipe-${batchId}-${index}`, recipeSet, random),
-      )
-      const order = await CustomerOrderModel.create({
-        orderId: numberId,
-        recipe: recipe._id,
-        expirationTime,
-        status: "waiting",
-      })
-      const npc = await NPCModel.create({
-        npcId: numberId,
-        order: order._id,
-        enterTime,
-      })
-      const populatedNpc = await npc.populate({
-        path: "order",
-        populate: { path: "recipe" },
-      })
-
-      npcs.push(serializeNpc(populatedNpc))
-    }
-
-    return res.status(201).json({
-      npcs,
-      meta: {
-        seed,
-        freq,
-        count,
-      },
-    })
-  } catch (err) {
-    if (err instanceof BadRequestError) {
-      return res.status(400).json({
-        error: err.message,
-      })
-    }
-
-    console.error(err)
-    return res.status(500).json({
-      error: "Could not generate NPCs",
-    })
-  }
-}
-
 export const submitGameResults: RequestHandler = async (req, res) => {
   const userId = req.user?.uid
 
@@ -881,26 +1099,80 @@ export const submitGameResults: RequestHandler = async (req, res) => {
   }
 
   try {
-    const updates = parseProfileUpdates(req.body)
-    const profile = await ProfileModel.findOneAndUpdate(
-        { userId },
-        {
-          $set: updates,
-        },
-        {
-          new: true,
-          runValidators: true,
-        },
-    )
+    const body = getRequestBody(req.body)
 
-    if (!profile) {
-      return res.status(404).json({
-        error: "User profile was not found",
+    if ("dayScore" in body || "totalScore" in body) {
+      const dayScore = parseDayScore(body)
+      const profile = await ProfileModel.findOne({ userId })
+
+      if (!profile) {
+        return res.status(404).json({
+          error: "User profile was not found",
+        })
+      }
+
+      const session = await SessionModel.findOne({ profile: profile._id })
+      const activeGame = session ? await getActiveGameInfo(session) : null
+
+      if (!session?.activeGame || !activeGame) {
+        return res.status(409).json({
+          error: "User does not have an active game",
+        })
+      }
+
+      if (!session.activeLevel) {
+        return res.status(409).json({
+          error: "User does not have an active level",
+        })
+      }
+
+      const level = session.activeLevel
+
+      if (level > profile.highestDayUnlocked) {
+        return res.status(403).json({
+          error: "Level is locked",
+        })
+      }
+
+      const config = getLevelConfig(level)
+      const passed = dayScore.totalScore >= config.targetScore
+      const canUpdateProgression = activeGame.mode === "singleplayer"
+      const unlockedNextLevel =
+          canUpdateProgression && passed && level === profile.highestDayUnlocked
+
+      profile.coinBalance += dayScore.tipsEarned
+
+      if (unlockedNextLevel) {
+        profile.highestDayUnlocked = level + 1
+      }
+
+      if (unlockedNextLevel || !profile.recipeSet) {
+        await updateProfileRecipeSet(profile)
+      }
+
+      session.activeLevel = null
+      await profile.save()
+      await session.save()
+      await profile.populate("recipeSet")
+      await appendDayResult(session, {
+        level,
+        ...dayScore,
+        passed,
+        completedAt: new Date(),
+      })
+
+      return res.status(200).json({
+        passed,
+        unlockedNextLevel,
+        targetScore: config.targetScore,
+        level,
+        dayScore,
+        profile: serializeProfile(profile),
       })
     }
 
-    return res.status(200).json({
-      profile: serializeProfile(profile),
+    return res.status(400).json({
+      error: "dayScore is required",
     })
   } catch (err) {
     if (err instanceof BadRequestError) {

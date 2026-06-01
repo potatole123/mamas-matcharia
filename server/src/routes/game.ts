@@ -5,8 +5,8 @@ import {
   createSinglePlayerGame,
   deleteMultiplayerGame,
   deleteSinglePlayerGame,
-  generateNPCs,
   joinMultiplayerGame,
+  startGameDay,
   submitGameResults,
 } from "../controllers/gameController"
 
@@ -17,7 +17,7 @@ router.delete("/singleplayer/current", authenticate, deleteSinglePlayerGame)
 router.post("/multiplayer", authenticate, createMultiplayerGame)
 router.post("/multiplayer/join", authenticate, joinMultiplayerGame)
 router.delete("/multiplayer/current", authenticate, deleteMultiplayerGame)
-router.post("/npcs", authenticate, generateNPCs)
+router.post("/day/start", authenticate, startGameDay)
 router.post("/results", authenticate, submitGameResults)
 
 export default router
