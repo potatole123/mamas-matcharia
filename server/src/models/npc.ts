@@ -2,7 +2,6 @@ import mongoose, { Schema, Types } from "mongoose";
 
 export interface NPC {
   npcId: number;
-  image: Types.ObjectId;
   order: Types.ObjectId;
   enterTime: Date;
   createdAt: Date;
@@ -15,12 +14,6 @@ const npcSchema = new Schema<NPC>(
       type: Number,
       required: true,
       unique: true,
-    },
-
-    image: {
-      type: Schema.Types.ObjectId,
-      ref: "Image",
-      required: true,
     },
 
     order: {

@@ -1,6 +1,6 @@
 import mongoose, { Schema, Types } from "mongoose";
 
-type ActiveGameModel = "SinglePlayerGameState" | "MultiplayerGameState";
+export type ActiveGameModel = "SinglePlayerGameState" | "MultiplayerGameState";
 
 export interface Session {
   profile: Types.ObjectId;
