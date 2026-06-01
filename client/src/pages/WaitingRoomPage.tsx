@@ -5,7 +5,7 @@ import './StationPage.css'
 // need to add a popup to enter join code
 // direct to join waiting room of that game
 function WaitingRoomPage() {
-  const [playerCount, setPlayerCount] = useState<number | null>(null)
+  const [playerCount] = useState<number | null>(null)
   return (
     <main className="station-page" aria-label="Waiting room page">
       <section className="station-stage">

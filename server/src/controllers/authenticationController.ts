@@ -10,6 +10,13 @@ class BadRequestError extends Error {
   }
 }
 
+class ConflictError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "ConflictError"
+  }
+}
+
 function assertRequiredString(value: unknown, fieldName: string): string {
   if (typeof value !== "string") {
     throw new BadRequestError(`Missing ${fieldName}`)
@@ -52,6 +59,100 @@ async function getAuthPayload(userId: string) {
       username: user.username,
     },
     profile: profilePayload,
+  }
+}
+
+function getDisplayName(firebaseUser: admin.auth.DecodedIdToken) {
+  const name = typeof firebaseUser.name === "string" ? firebaseUser.name.trim() : ""
+  const email = typeof firebaseUser.email === "string" ? firebaseUser.email.trim() : ""
+  const emailName = email.split("@")[0]?.trim() ?? ""
+
+  return name || emailName || `Player ${firebaseUser.uid.slice(0, 6)}`
+}
+
+function getUsername(firebaseUser: admin.auth.DecodedIdToken) {
+  const email = typeof firebaseUser.email === "string" ? firebaseUser.email.trim() : ""
+  const baseValue = email.split("@")[0] ?? getDisplayName(firebaseUser)
+  const normalizedBase = baseValue
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32)
+  const base = normalizedBase || "player"
+
+  return `${base}-${firebaseUser.uid}`
+}
+
+async function getOrCreateAuthPayload(firebaseUser: admin.auth.DecodedIdToken) {
+  const userId = firebaseUser.uid
+  const email = typeof firebaseUser.email === "string" ? firebaseUser.email.trim().toLowerCase() : ""
+
+  if (!email) {
+    throw new BadRequestError("Authenticated user is missing an email")
+  }
+
+  const existingPayload = await getAuthPayload(userId)
+
+  if (existingPayload?.profile) {
+    return existingPayload
+  }
+
+  const userWithEmail = await UserModel.findOne({ email })
+
+  if (userWithEmail && userWithEmail.userId !== userId) {
+    throw new ConflictError("Email is already linked to another account")
+  }
+
+  const displayName = getDisplayName(firebaseUser)
+
+  const [user, profile] = await Promise.all([
+    UserModel.findOneAndUpdate(
+      { userId },
+      {
+        $setOnInsert: {
+          userId,
+          email,
+          username: getUsername(firebaseUser),
+        },
+      },
+      {
+        new: true,
+        setDefaultsOnInsert: true,
+        upsert: true,
+      },
+    ),
+    ProfileModel.findOneAndUpdate(
+      { userId },
+      {
+        $setOnInsert: {
+          userId,
+          displayName,
+          coinBalance: 0,
+          highestDayUnlocked: 1,
+          tutorialCompleted: false,
+        },
+      },
+      {
+        new: true,
+        setDefaultsOnInsert: true,
+        upsert: true,
+      },
+    ),
+  ])
+
+  return {
+    user: {
+      userId: user.userId,
+      email: user.email,
+      username: user.username,
+    },
+    profile: {
+      userId: profile.userId,
+      displayName: profile.displayName,
+      coinBalance: profile.coinBalance,
+      highestDayUnlocked: profile.highestDayUnlocked,
+      tutorialCompleted: profile.tutorialCompleted,
+    },
   }
 }
 
@@ -155,7 +256,8 @@ export const registerUser: RequestHandler = async (req, res) => {
 }
 
 export const loginUser: RequestHandler = async (req, res) => {
-  const userId = req.user?.uid
+  const firebaseUser = req.user
+  const userId = firebaseUser?.uid
 
   if (!userId) {
     return res.status(401).json({
@@ -164,16 +266,28 @@ export const loginUser: RequestHandler = async (req, res) => {
   }
 
   try {
-    const payload = await getAuthPayload(userId)
-
-    if (!payload) {
-      return res.status(404).json({
-        error: "User profile was not found",
-      })
-    }
+    const payload = await getOrCreateAuthPayload(firebaseUser)
 
     return res.status(200).json(payload)
   } catch (err) {
+    if (err instanceof BadRequestError) {
+      return res.status(400).json({
+        error: err.message,
+      })
+    }
+
+    if (err instanceof ConflictError) {
+      return res.status(409).json({
+        error: err.message,
+      })
+    }
+
+    if (typeof err === "object" && err !== null && "code" in err && err.code === 11000) {
+      return res.status(409).json({
+        error: "Email or username already exists",
+      })
+    }
+
     console.error(err)
     return res.status(500).json({
       error: "Could not log in user",
