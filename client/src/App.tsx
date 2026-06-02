@@ -12,7 +12,9 @@ import WaitingRoomPage from './pages/WaitingRoomPage'
 import EnterJoinCodePage from './pages/EnterJoinCodePage'
 import { Navigate, Routes, Route } from 'react-router-dom'
 import { useAuth } from './auth'
-import { OrderTicketsProvider } from './OrderTicketsContext'
+import { GameDayProvider } from './GameDayProvider'
+import { OrderTicketsProvider } from './OrderTicketsProvider'
+import { TutorialProvider } from './TutorialProvider'
 import './App.css'
 
 type ProtectedRouteProps = {
@@ -30,8 +32,10 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 
 function App() {
   return (
-    <OrderTicketsProvider>
-      <div className="app-shell">
+    <GameDayProvider>
+      <TutorialProvider>
+        <OrderTicketsProvider>
+          <div className="app-shell">
         <Routes>
           <Route path="/" element={<StartPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -109,8 +113,10 @@ function App() {
           }
         />
         </Routes>
-      </div>
-    </OrderTicketsProvider>
+          </div>
+        </OrderTicketsProvider>
+      </TutorialProvider>
+    </GameDayProvider>
   )
 }
 

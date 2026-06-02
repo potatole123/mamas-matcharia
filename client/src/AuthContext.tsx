@@ -14,7 +14,7 @@ import {
   type User,
 } from 'firebase/auth'
 
-import { AuthContext } from './auth'
+import { AuthContext, type AuthProfile } from './auth'
 import { Fetch } from './Fetch'
 import { auth, isFirebaseConfigured } from './firebase'
 
@@ -26,17 +26,17 @@ type AuthSessionPayload = {
     email: string
     username: string
   }
-  profile: {
-    displayName: string
-  } | null
+  profile: AuthProfile | null
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [profile, setProfile] = useState<AuthProfile | null>(null)
   const [username, setUsername] = useState<string | null>(null)
   const [loading, setLoading] = useState(Boolean(auth))
   const value = {
     user,
+    profile,
     username,
     loading,
     signInGoogle,
@@ -63,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(user)
 
       if (!user) {
+        setProfile(null)
         setUsername(null)
         setLoading(false)
         return
@@ -93,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })
 
     setUsername(session.profile?.displayName ?? session.user.username)
+    setProfile(session.profile)
     return session
   }
 
@@ -148,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout() {
     if (!auth || !isFirebaseConfigured) {
       setUser(null)
+      setProfile(null)
       setUsername(null)
       return Promise.resolve()
     }
