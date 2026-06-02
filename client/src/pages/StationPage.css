@@ -246,10 +246,60 @@
   z-index: 1;
 }
 
+.station-day-error {
+  position: absolute;
+  left: 50%;
+  top: 4%;
+  z-index: 7;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  transform: translateX(-50%);
+  border-radius: 0.4rem;
+  background: rgb(255 248 232 / 90%);
+  color: #7e241b;
+  font-weight: 700;
+}
+
+.station-level-banner {
+  position: absolute;
+  left: 50%;
+  bottom: 18%;
+  z-index: 7;
+  margin: 0;
+  transform: translateX(-50%);
+  color: #fffdb8;
+  font-family: 'Slate Black';
+  font-size: clamp(2rem, 4vw, 4.5rem);
+  letter-spacing: 0.08em;
+  text-shadow:
+    0 0.08em 0 #6f361e,
+    0 0.15em 0.25em rgb(54 25 15 / 45%);
+  animation: station-level-banner 3s ease-out forwards;
+  pointer-events: none;
+}
+
 
 @media (max-aspect-ratio: 6844 / 5100) {
   .station-stage {
     width: 100vw;
+  }
+}
+
+@keyframes station-level-banner {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -20%);
+  }
+
+  15%,
+  75% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -12%);
   }
 }
 

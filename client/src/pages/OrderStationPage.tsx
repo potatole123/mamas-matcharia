@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import matchaInterior from '../assets/order/matcha-interior.png'
 import bearista from '../assets/order/bearista-cropped.png'
 import bearSmile from '../assets/order/bear-smile.png'
@@ -6,12 +6,15 @@ import bearLaugh from '../assets/order/bear-laugh.png'
 import bearOpen from '../assets/order/bear-open.png'
 import speechBubble from '../assets/order/speech-bubble.png'
 import orderCounter from '../assets/order/order-counter.png'
-import OrderTicketBoard, { ORDER_TICKET_FIELDS } from '../components/OrderTicketBoard'
+import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
+import { useGameDayContext } from '../GameDayContext'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
+import { ORDER_TICKET_FIELDS, type TicketData } from '../hooks/useOrderTickets'
+import type { ScheduledNpc } from '../types/game'
 import './StationPage.css'
 
-type BearPhase = 'idle' | 'spawn' | 'moving' | 'at-counter' | 'talking' | 'exiting' | 'done'
+type BearPhase = 'idle' | 'spawn' | 'moving' | 'at-counter' | 'talking' | 'exiting'
 
 const TALKING_BEAR_EXPRESSIONS = [bearSmile, bearLaugh, bearOpen]
 
@@ -35,16 +38,33 @@ const BEAR_TALKING_DURATION_MS = 3200
 const BEAR_EXIT_MS = 1100
 const BEAR_RESET_DELAY_MS = 250
 const BEAR_CYCLE_MS = 200
+const LEVEL_BANNER_DURATION_MS = 3000
 const ORDER_TICKET_LINE_REVEAL_INTERVAL_MS = Math.max(
   120,
   Math.floor(BEAR_TALKING_DURATION_MS / ORDER_TICKET_FIELDS.length),
 )
 
+function toTicketData(npc: ScheduledNpc): TicketData {
+  return {
+    orderId: npc.order.orderId,
+    orderNumber: npc.orderNumber,
+    recipe: npc.order.recipe,
+  }
+}
+
 function OrderStationPage() {
   const [phase, setPhase] = useState<BearPhase>('idle')
   const [bearExpressionIndex, setBearExpressionIndex] = useState(0)
   const [bearTransitionMs, setBearTransitionMs] = useState(0)
-  const [animationRunId, setAnimationRunId] = useState(0)
+  const [activeNpc, setActiveNpc] = useState<ScheduledNpc | null>(null)
+  const [isLevelBannerVisible, setIsLevelBannerVisible] = useState(false)
+  const {
+    dayState,
+    waitingNpcs,
+    dayStartError,
+    startDay,
+    claimWaitingNpc,
+  } = useGameDayContext()
   const {
     ticketStore,
     showOrderTicketText,
@@ -58,24 +78,43 @@ function OrderStationPage() {
   const timeoutsRef = useRef<number[]>([])
   const stationStageRef = useRef<HTMLElement | null>(null)
 
-  const clearPendingTimeouts = () => {
+  const clearPendingTimeouts = useCallback(() => {
     for (const timeoutId of timeoutsRef.current) {
       window.clearTimeout(timeoutId)
     }
     timeoutsRef.current = []
-  }
+  }, [])
 
   useEffect(() => {
-    if (animationRunId === 0) {
+    void startDay().catch((error: unknown) => {
+      console.error('Could not start game day', error)
+    })
+  }, [startDay])
+
+  useEffect(() => {
+    if (!dayState) {
+      return
+    }
+
+    const showBannerTimeoutId = window.setTimeout(() => setIsLevelBannerVisible(true), 0)
+    const hideBannerTimeoutId = window.setTimeout(
+      () => setIsLevelBannerVisible(false),
+      LEVEL_BANNER_DURATION_MS,
+    )
+
+    return () => {
+      window.clearTimeout(showBannerTimeoutId)
+      window.clearTimeout(hideBannerTimeoutId)
+    }
+  }, [dayState])
+
+  useEffect(() => {
+    if (!activeNpc) {
       return
     }
 
     clearPendingTimeouts()
-    const nextTicket = beginNewOrder()
-
-    setBearExpressionIndex(0)
-    setBearTransitionMs(0)
-    setPhase('spawn')
+    const nextTicket = toTicketData(activeNpc)
 
     const schedule = (callback: () => void, delayMs: number) => {
       const timeoutId = window.setTimeout(callback, delayMs)
@@ -86,6 +125,13 @@ function OrderStationPage() {
     const startTalkingDelayMs = startMoveDelayMs + BEAR_MOVE_IN_MS + BEAR_PRE_TALK_DELAY_MS
     const startExitDelayMs = startTalkingDelayMs + BEAR_TALKING_DURATION_MS
     const finishDelayMs = startExitDelayMs + BEAR_EXIT_MS + BEAR_RESET_DELAY_MS
+
+    schedule(() => {
+      beginNewOrder()
+      setBearExpressionIndex(0)
+      setBearTransitionMs(0)
+      setPhase('spawn')
+    }, 0)
 
     schedule(() => {
       setBearTransitionMs(BEAR_MOVE_IN_MS)
@@ -112,11 +158,18 @@ function OrderStationPage() {
 
     schedule(() => {
       setBearTransitionMs(0)
-      setPhase('done')
+      setPhase('idle')
+      setActiveNpc(null)
     }, finishDelayMs)
 
     return clearPendingTimeouts
-  }, [animationRunId, beginNewOrder, markOrderFullyRevealed, showGeneratedOrder])
+  }, [
+    activeNpc,
+    beginNewOrder,
+    clearPendingTimeouts,
+    markOrderFullyRevealed,
+    showGeneratedOrder,
+  ])
 
   useEffect(() => {
     if (phase !== 'talking') {
@@ -144,17 +197,16 @@ function OrderStationPage() {
 
   const isAtCounter = phase === 'moving' || phase === 'at-counter' || phase === 'talking'
   const isExiting = phase === 'exiting'
-  const isDone = phase === 'done'
 
-  const customerBearLeftPct = isDone || isExiting
+  const customerBearLeftPct = isExiting
     ? CUSTOMER_BEAR_EXIT_LEFT_PCT
     : isAtCounter
       ? CUSTOMER_BEAR_TARGET_LEFT_PCT
       : CUSTOMER_BEAR_START_LEFT_PCT
   const customerBearTopPct =
-    isAtCounter || isExiting || isDone ? CUSTOMER_BEAR_TARGET_TOP_PCT : CUSTOMER_BEAR_START_TOP_PCT
+    isAtCounter || isExiting ? CUSTOMER_BEAR_TARGET_TOP_PCT : CUSTOMER_BEAR_START_TOP_PCT
   const customerBearWidthPct =
-    isAtCounter || isExiting || isDone
+    isAtCounter || isExiting
       ? CUSTOMER_BEAR_TARGET_WIDTH_PCT
       : CUSTOMER_BEAR_TARGET_WIDTH_PCT * CUSTOMER_BEAR_START_SIZE_SCALE
 
@@ -164,10 +216,11 @@ function OrderStationPage() {
     width: `${customerBearWidthPct}%`,
     ['--order-bear-transition-ms' as string]: `${bearTransitionMs}ms`,
   }
-  const isInteractionLocked = phase !== 'idle' && phase !== 'done'
+  const isInteractionLocked = phase !== 'idle' || activeNpc !== null
+  const shouldRenderCustomer = activeNpc !== null || waitingNpcs.length > 0
 
   const handleStageClick = (event: MouseEvent<HTMLElement>) => {
-    if (isInteractionLocked) {
+    if (isInteractionLocked || waitingNpcs.length === 0) {
       return
     }
 
@@ -198,7 +251,13 @@ function OrderStationPage() {
       return
     }
 
-    setAnimationRunId((previous) => previous + 1)
+    const nextNpc = waitingNpcs[0]
+    if (!nextNpc) {
+      return
+    }
+
+    claimWaitingNpc(nextNpc.npcId)
+    setActiveNpc(nextNpc)
   }
 
   return (
@@ -209,17 +268,27 @@ function OrderStationPage() {
     >
       <section className="station-stage" ref={stationStageRef}>
         <img className="station-background" src={matchaInterior} alt="" draggable="false" />
-        <img
-          className="order-bear-customer"
-          src={TALKING_BEAR_EXPRESSIONS[bearExpressionIndex]}
-          alt=""
-          draggable="false"
-          style={customerBearStyle}
-        />
+        {shouldRenderCustomer && (
+          <img
+            className="order-bear-customer"
+            src={TALKING_BEAR_EXPRESSIONS[bearExpressionIndex]}
+            alt=""
+            draggable="false"
+            style={customerBearStyle}
+          />
+        )}
         <img className="order-counter" src={orderCounter} alt="" draggable="false" />
         <img className="order-bearista" src={bearista} alt="" draggable="false" />
+        {isLevelBannerVisible && dayState && (
+          <p className="station-level-banner">Level {dayState.day.level}</p>
+        )}
         {phase === 'talking' && (
           <img className="order-speech-bubble" src={speechBubble} alt="" draggable="false" />
+        )}
+        {dayStartError && (
+          <p className="station-day-error" role="alert">
+            Could not start the game day.
+          </p>
         )}
         <OrderTicketBoard
           ticketStore={ticketStore}

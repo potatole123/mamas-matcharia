@@ -261,6 +261,7 @@ function serializeDayNpc(npc: HydratedDocument<NPC>) {
     order?: {
       orderId: number
       recipe?: Partial<Recipe>
+      status?: string
     }
   }
   const recipe = payload.order?.recipe ?? {}
@@ -269,6 +270,7 @@ function serializeDayNpc(npc: HydratedDocument<NPC>) {
     npcId: payload.npcId,
     order: {
       orderId: payload.order?.orderId,
+      status: payload.order?.status,
       recipe: {
         recipeId: recipe.recipeId,
         cupSize: recipe.cupSize,
@@ -694,6 +696,7 @@ export const startGameDay: RequestHandler = async (req, res) => {
         seed,
         targetScore: dayConfig.targetScore,
         npcCount: dayConfig.npcCount,
+        npcFrequencySeconds: dayConfig.npcFrequencySeconds,
       },
       npcs: await createDayNpcs(activeGame.gameId, level, seed, dayConfig),
     })
