@@ -14,6 +14,7 @@ import { Navigate, Routes, Route } from 'react-router-dom'
 import { useAuth } from './auth'
 import { GameDayProvider } from './GameDayProvider'
 import { OrderTicketsProvider } from './OrderTicketsProvider'
+import { TutorialProvider } from './TutorialProvider'
 import './App.css'
 
 type ProtectedRouteProps = {
@@ -32,8 +33,9 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
 function App() {
   return (
     <GameDayProvider>
-      <OrderTicketsProvider>
-        <div className="app-shell">
+      <TutorialProvider>
+        <OrderTicketsProvider>
+          <div className="app-shell">
         <Routes>
           <Route path="/" element={<StartPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -111,8 +113,9 @@ function App() {
           }
         />
         </Routes>
-        </div>
-      </OrderTicketsProvider>
+          </div>
+        </OrderTicketsProvider>
+      </TutorialProvider>
     </GameDayProvider>
   )
 }

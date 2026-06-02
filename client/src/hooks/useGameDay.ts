@@ -46,6 +46,7 @@ export function useGameDay() {
   const spawnTimeoutsRef = useRef<number[]>([])
   const startDayPromiseRef = useRef<Promise<StartGameDayResponse | null> | null>(null)
   const activeUserIdRef = useRef(user?.uid)
+  const shouldShowLevelBannerRef = useRef(false)
 
   const clearSpawnTimeouts = useCallback(() => {
     for (const timeoutId of spawnTimeoutsRef.current) {
@@ -62,6 +63,7 @@ export function useGameDay() {
     setDrinksByOrderId({})
     setDayStartError(null)
     setIsStartingDay(false)
+    shouldShowLevelBannerRef.current = false
   }, [clearSpawnTimeouts])
 
   useEffect(() => clearSpawnTimeouts, [clearSpawnTimeouts])
@@ -88,6 +90,7 @@ export function useGameDay() {
   const scheduleNpcs = useCallback(
     (dayPayload: StartGameDayResponse) => {
       clearSpawnTimeouts()
+      shouldShowLevelBannerRef.current = true
       setDayState(dayPayload)
       setWaitingNpcs([])
       setDrinksByOrderId({})
@@ -174,6 +177,15 @@ export function useGameDay() {
     setWaitingNpcs((currentNpcs) => currentNpcs.filter((npc) => npc.npcId !== npcId))
   }, [])
 
+  const consumeLevelBanner = useCallback(() => {
+    if (!shouldShowLevelBannerRef.current) {
+      return false
+    }
+
+    shouldShowLevelBannerRef.current = false
+    return true
+  }, [])
+
   const updateDrink = useCallback((orderId: number, updates: Partial<Drink>) => {
     setDrinksByOrderId((currentDrinks) => {
       const currentDrink = currentDrinks[orderId]
@@ -209,6 +221,7 @@ export function useGameDay() {
     isStartingDay,
     startDay,
     resetDay,
+    consumeLevelBanner,
     claimWaitingNpc,
     updateDrink,
     completeDrink,
