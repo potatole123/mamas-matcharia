@@ -1,6 +1,8 @@
 import type { RequestHandler } from "express"
 import admin from "../firebaseAdmin"
+import { buildRecipeSetForUnlockedLevel } from "../gameProgression"
 import { ProfileModel } from "../models/profile"
+import { RecipeSetModel } from "../models/recipeSet"
 import { UserModel } from "../models/user"
 
 class BadRequestError extends Error {
@@ -33,7 +35,7 @@ function assertRequiredString(value: unknown, fieldName: string): string {
 async function getAuthPayload(userId: string) {
   const [user, profile] = await Promise.all([
     UserModel.findOne({ userId }),
-    ProfileModel.findOne({ userId }),
+    ProfileModel.findOne({ userId }).populate("recipeSet"),
   ])
 
   if (!user) {
@@ -42,6 +44,16 @@ async function getAuthPayload(userId: string) {
 
   let profilePayload = null
 
+  if (profile && !profile.recipeSet) {
+    const recipeSet = await RecipeSetModel.create(
+      buildRecipeSetForUnlockedLevel(profile.highestDayUnlocked),
+    )
+
+    profile.recipeSet = recipeSet._id
+    await profile.save()
+    await profile.populate("recipeSet")
+  }
+
   if (profile) {
     profilePayload = {
       userId: profile.userId,
@@ -49,6 +61,7 @@ async function getAuthPayload(userId: string) {
       coinBalance: profile.coinBalance,
       highestDayUnlocked: profile.highestDayUnlocked,
       tutorialCompleted: profile.tutorialCompleted,
+      recipeSet: serializeRecipeSet(profile.recipeSet),
     }
   }
 
@@ -59,6 +72,32 @@ async function getAuthPayload(userId: string) {
       username: user.username,
     },
     profile: profilePayload,
+  }
+}
+
+function serializeRecipeSet(recipeSet: unknown) {
+  if (typeof recipeSet !== "object" || recipeSet === null) {
+    return recipeSet ? String(recipeSet) : null
+  }
+
+  if (!("cupSizeSet" in recipeSet)) {
+    return "_id" in recipeSet ? String(recipeSet._id) : null
+  }
+
+  const payload = recipeSet as Record<string, unknown>
+
+  return {
+    id: "_id" in payload ? String(payload._id) : undefined,
+    cupSizeSet: payload.cupSizeSet,
+    tempSet: payload.tempSet,
+    iceLevelSet: payload.iceLevelSet,
+    matchaSet: payload.matchaSet,
+    milkSet: payload.milkSet,
+    flavorSet: payload.flavorSet,
+    sweetenerSet: payload.sweetenerSet,
+    sweetnessLevelSet: payload.sweetnessLevelSet,
+    creamTopSet: payload.creamTopSet,
+    powderSet: payload.powderSet,
   }
 }
 
@@ -104,6 +143,7 @@ async function getOrCreateAuthPayload(firebaseUser: admin.auth.DecodedIdToken) {
   }
 
   const displayName = getDisplayName(firebaseUser)
+  const recipeSet = await RecipeSetModel.create(buildRecipeSetForUnlockedLevel(1))
 
   const [user, profile] = await Promise.all([
     UserModel.findOneAndUpdate(
@@ -130,6 +170,7 @@ async function getOrCreateAuthPayload(firebaseUser: admin.auth.DecodedIdToken) {
           coinBalance: 0,
           highestDayUnlocked: 1,
           tutorialCompleted: false,
+          recipeSet: recipeSet._id,
         },
       },
       {
@@ -152,12 +193,14 @@ async function getOrCreateAuthPayload(firebaseUser: admin.auth.DecodedIdToken) {
       coinBalance: profile.coinBalance,
       highestDayUnlocked: profile.highestDayUnlocked,
       tutorialCompleted: profile.tutorialCompleted,
+      recipeSet: serializeRecipeSet(recipeSet),
     },
   }
 }
 
 export const registerUser: RequestHandler = async (req, res) => {
   let firebaseUser: admin.auth.UserRecord | null = null
+  let recipeSetId: unknown = null
 
   try {
     const body = req.body as Partial<Record<string, unknown>> | undefined
@@ -190,12 +233,16 @@ export const registerUser: RequestHandler = async (req, res) => {
       username,
     })
 
+    const recipeSet = await RecipeSetModel.create(buildRecipeSetForUnlockedLevel(1))
+    recipeSetId = recipeSet._id
+
     const profile = await ProfileModel.create({
       userId: firebaseUser.uid,
       displayName: username,
       coinBalance: 0,
       highestDayUnlocked: 1,
       tutorialCompleted: false,
+      recipeSet: recipeSet._id,
     })
 
     return res.status(201).json({
@@ -210,6 +257,7 @@ export const registerUser: RequestHandler = async (req, res) => {
         coinBalance: profile.coinBalance,
         highestDayUnlocked: profile.highestDayUnlocked,
         tutorialCompleted: profile.tutorialCompleted,
+        recipeSet: serializeRecipeSet(recipeSet),
       },
     })
   } catch (err) {
@@ -217,6 +265,7 @@ export const registerUser: RequestHandler = async (req, res) => {
       await Promise.allSettled([
         UserModel.deleteOne({ userId: firebaseUser.uid }),
         ProfileModel.deleteOne({ userId: firebaseUser.uid }),
+        recipeSetId ? RecipeSetModel.deleteOne({ _id: recipeSetId }) : Promise.resolve(),
         admin.auth().deleteUser(firebaseUser.uid),
       ])
     }

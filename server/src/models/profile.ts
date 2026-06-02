@@ -1,4 +1,4 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Schema, Types } from "mongoose";
 
 export interface Profile {
   userId: string;
@@ -6,6 +6,7 @@ export interface Profile {
   coinBalance: number;
   highestDayUnlocked: number;
   tutorialCompleted: boolean;
+  recipeSet?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +44,12 @@ const profileSchema = new Schema<Profile>(
       type: Boolean,
       required: true,
       default: false,
+    },
+
+    recipeSet: {
+      type: Schema.Types.ObjectId,
+      ref: "RecipeSet",
+      default: null,
     },
   },
   {

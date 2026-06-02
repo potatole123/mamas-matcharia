@@ -40,6 +40,7 @@ function toSessionPayload(session: NonNullable<SessionDocument>) {
     profile: payload.profile,
     activeGame: payload.activeGame ?? null,
     activeGameModel: payload.activeGameModel ?? null,
+    activeLevel: payload.activeLevel ?? null,
     createdAt: payload.createdAt,
     updatedAt: payload.updatedAt,
   }

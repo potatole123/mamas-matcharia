@@ -1,7 +1,7 @@
-import mongoose, { Schema, Types } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 export interface OrderScore {
-  order: Types.ObjectId;
+  orderId: number;
   waitingScore: number;
   accuracyScore: number;
   measurementScore: number;
@@ -14,9 +14,8 @@ export interface OrderScore {
 
 const orderScoreSchema = new Schema<OrderScore>(
   {
-    order: {
-      type: Schema.Types.ObjectId,
-      ref: "CustomerOrder",
+    orderId: {
+      type: Number,
       required: true,
       unique: true,
     },

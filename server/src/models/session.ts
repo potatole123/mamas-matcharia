@@ -6,6 +6,7 @@ export interface Session {
   profile: Types.ObjectId;
   activeGame?: Types.ObjectId | null;
   activeGameModel?: ActiveGameModel | null;
+  activeLevel?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,6 +29,12 @@ const sessionSchema = new Schema<Session>(
     activeGameModel: {
       type: String,
       enum: ["SinglePlayerGameState", "MultiplayerGameState"],
+      default: null,
+    },
+
+    activeLevel: {
+      type: Number,
+      min: 1,
       default: null,
     },
   },
