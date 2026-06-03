@@ -15,6 +15,7 @@ import { useAuth } from './auth'
 import { GameDayProvider } from './GameDayProvider'
 import { OrderTicketsProvider } from './OrderTicketsProvider'
 import { TutorialProvider } from './TutorialProvider'
+import { DrinkProgressProvider } from './DrinkProgressProvider'
 import './App.css'
 
 type ProtectedRouteProps = {
@@ -35,85 +36,87 @@ function App() {
     <GameDayProvider>
       <TutorialProvider>
         <OrderTicketsProvider>
-          <div className="app-shell">
-        <Routes>
-          <Route path="/" element={<StartPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route
-            path="/home"
-            element={
-              <ProtectedRoute>
-                <HomePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/game"
-            element={
-              <ProtectedRoute>
-                <GamePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/game-summary"
-            element={
-              <ProtectedRoute>
-                <GameSummary />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/order-station"
-            element={
-              <ProtectedRoute>
-                <OrderStationPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/base-station"
-            element={
-              <ProtectedRoute>
-                <BaseStationPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/whisking-station"
-            element={
-              <ProtectedRoute>
-                <WhiskingStationPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/topping-station"
-            element={
-              <ProtectedRoute>
-                <ToppingStationPage />
-              </ProtectedRoute>
-            }
-          />
-        <Route
-          path="/waiting-room"
-          element={
-            <ProtectedRoute>
-              <WaitingRoomPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/enter-join-code"
-          element={
-            <ProtectedRoute>
-              <EnterJoinCodePage />
-            </ProtectedRoute>
-          }
-        />
-        </Routes>
-          </div>
+          <DrinkProgressProvider>
+            <div className="app-shell">
+              <Routes>
+                <Route path="/" element={<StartPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/signup" element={<SignupPage />} />
+                <Route
+                  path="/home"
+                  element={
+                    <ProtectedRoute>
+                      <HomePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/game"
+                  element={
+                    <ProtectedRoute>
+                      <GamePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/game-summary"
+                  element={
+                    <ProtectedRoute>
+                      <GameSummary />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/order-station"
+                  element={
+                    <ProtectedRoute>
+                      <OrderStationPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/base-station"
+                  element={
+                    <ProtectedRoute>
+                      <BaseStationPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/whisking-station"
+                  element={
+                    <ProtectedRoute>
+                      <WhiskingStationPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/topping-station"
+                  element={
+                    <ProtectedRoute>
+                      <ToppingStationPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/waiting-room"
+                  element={
+                    <ProtectedRoute>
+                      <WaitingRoomPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/enter-join-code"
+                  element={
+                    <ProtectedRoute>
+                      <EnterJoinCodePage />
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </div>
+          </DrinkProgressProvider>
         </OrderTicketsProvider>
       </TutorialProvider>
     </GameDayProvider>

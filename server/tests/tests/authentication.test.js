@@ -53,6 +53,16 @@ describe("Authentication API", () => {
       expect(response.json.profile.userId).toBe(response.json.user.userId);
     });
 
+    test("creates a user and profile without a username", async () => {
+      const user = uniqueUser();
+      const response = await registerUser(user, { includeUsername: false });
+
+      expect(response.status).toBe(201);
+      expect(response.json.user.email).toBe(user.email);
+      expect(response.json.user.username).toEqual(expect.any(String));
+      expect(response.json.profile.displayName).toBe(user.email.split("@")[0]);
+    });
+
     test("profile defaults to coinBalance 0, highestDayUnlocked 1, and tutorialCompleted false", async () => {
       const user = uniqueUser();
       const response = await registerUser(user);
@@ -69,7 +79,6 @@ describe("Authentication API", () => {
 
     test.each([
       ["email", ({ username, password }) => ({ username, password })],
-      ["username", ({ email, password }) => ({ email, password })],
       ["password", ({ email, username }) => ({ email, username })]
     ])("returns 400 when %s is missing", async (_field, makeBody) => {
       const user = uniqueUser();
@@ -84,8 +93,6 @@ describe("Authentication API", () => {
     test.each([
       ["email", { email: "" }],
       ["email whitespace", { email: "   " }],
-      ["username", { username: "" }],
-      ["username whitespace", { username: "   " }],
       ["password", { password: "" }],
       ["password whitespace", { password: "   " }]
     ])("returns 400 when %s is blank", async (_caseName, override) => {
