@@ -5,7 +5,8 @@ import StationDock from '../components/StationDock'
 import readyButton from '../assets/ready_button.png'
 import { useDrinkProgress } from '../DrinkProgressContext'
 import { getCupPreviewSrc } from '../drinkCup'
-import type { BowlMatchaLevel } from '../stationProgress'
+import { MATCHA_TIN_TO_GRADE, matchaGradeToTin } from '../utils/drinkMappings'
+import type { BowlMatchaLevel, MatchaTin } from '../stationProgress'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
 import emptyBowl from '../assets/whisking-station/empty-bowl.png'
 import bowlWithMatcha1 from '../assets/whisking-station/bowl-with-matcha-1.png'
@@ -39,15 +40,32 @@ function WhiskingStationPage() {
   const { ticketStore, showOrderTicketText, revealedOrderLineCount, swapMainWithHistory } =
     useOrderTicketsContext()
   const {
+    drinkAtWhisking,
+    drinkAtTopping,
+    benchMatcha,
+    updateDrink,
+    setBenchMatcha,
     whiskingStation,
     updateWhiskingStation,
     whiskingCup,
     updateWhiskingCup,
     sendCupToTopping,
-    clearWhiskingCup,
-    resetAllStationProgress,
   } = useDrinkProgress()
-  const { bowlMatchaLevel, bowlHasWater, isWhisked, totalWeight } = whiskingStation
+  const { bowlMatchaLevel, bowlHasWater, isWhisked, totalWeight, selectedMatchaTin } =
+    whiskingStation
+
+  function getLockedMatchaTin(): MatchaTin | null {
+    if (selectedMatchaTin) {
+      return selectedMatchaTin
+    }
+    const grade = drinkAtWhisking?.recipe.matcha ?? benchMatcha
+    return grade ? matchaGradeToTin(grade) : null
+  }
+
+  function canUseMatchaTin(tin: MatchaTin) {
+    const locked = getLockedMatchaTin()
+    return locked === null || locked === tin
+  }
 
   const [spoon1State, setSpoon1State] = useState<SpoonState>('empty-original')
   const [spoon2State, setSpoon2State] = useState<SpoonState>('empty-original')
@@ -63,7 +81,13 @@ function WhiskingStationPage() {
   const canPourIntoCup = Boolean(
     whiskingCup?.hasMilk && !whiskingCup.hasBaseDrink && isWhisked && !isBowlAnimating,
   )
-  const showReadyButton = Boolean(whiskingCup?.hasBaseDrink) && !cupShooting && !isBowlAnimating
+  const showReadyButton = Boolean(
+    drinkAtWhisking &&
+      !drinkAtTopping &&
+      whiskingCup?.hasBaseDrink &&
+      !cupShooting &&
+      !isBowlAnimating,
+  )
 
   function trackTimeout(callback: () => void, delayMs: number) {
     const timeoutId = window.setTimeout(callback, delayMs)
@@ -113,19 +137,44 @@ function WhiskingStationPage() {
     }, 1200)
   }
 
+  function setMatchaGradeFromTin(tin: MatchaTin) {
+    const matcha = MATCHA_TIN_TO_GRADE[tin]
+    if (drinkAtWhisking) {
+      updateDrink(drinkAtWhisking.id, { recipe: { matcha } })
+    } else {
+      setBenchMatcha(matcha)
+    }
+  }
+
+  function handleMatchaTinClick(
+    tin: MatchaTin,
+    spoonState: SpoonState,
+    setSpoonState: (state: SpoonState) => void,
+  ) {
+    if (spoonState !== 'empty-original' || bowlMatchaLevel === '4' || isBowlAnimating) return
+    if (!canUseMatchaTin(tin)) return
+
+    if (!selectedMatchaTin) {
+      updateWhiskingStation({ selectedMatchaTin: tin })
+    }
+    setMatchaGradeFromTin(tin)
+    runSpoonCycle(setSpoonState)
+  }
+
   function handleMatchaTin1Click() {
-    if (spoon1State !== 'empty-original' || bowlMatchaLevel === '4' || isBowlAnimating) return
-    runSpoonCycle(setSpoon1State)
+    handleMatchaTinClick(1, spoon1State, setSpoon1State)
   }
 
   function handleMatchaTin2Click() {
-    if (spoon2State !== 'empty-original' || bowlMatchaLevel === '4' || isBowlAnimating) return
-    runSpoonCycle(setSpoon2State)
+    handleMatchaTinClick(2, spoon2State, setSpoon2State)
   }
 
   function handleMatchaTin3Click() {
-    if (spoon3State !== 'empty-original' || bowlMatchaLevel === '4' || isBowlAnimating) return
-    runSpoonCycle(setSpoon3State)
+    handleMatchaTinClick(3, spoon3State, setSpoon3State)
+  }
+
+  function tinIsDisabled(tin: MatchaTin) {
+    return !canUseMatchaTin(tin) || isBowlAnimating
   }
 
   function handleKettleClick() {
@@ -182,12 +231,18 @@ function WhiskingStationPage() {
     if (cupSendFinishedRef.current || !whiskingCup) return
     cupSendFinishedRef.current = true
     sendCupToTopping(whiskingCup)
-    clearWhiskingCup()
     setCupShooting(false)
   }
 
   function handleReadyClick() {
-    if (!whiskingCup?.hasBaseDrink || isBowlAnimating || cupShooting) return
+    if (
+      !drinkAtWhisking ||
+      drinkAtTopping ||
+      !whiskingCup?.hasBaseDrink ||
+      isBowlAnimating ||
+      cupShooting
+    )
+      return
     cupSendFinishedRef.current = false
     setCupShooting(true)
     trackTimeout(() => {
@@ -198,18 +253,6 @@ function WhiskingStationPage() {
   function handleCupShootAnimationEnd() {
     if (!cupShooting) return
     finishSendCupToTopping()
-  }
-
-  function handleReset() {
-    clearPendingTimeouts()
-    setSpoon1State('empty-original')
-    setSpoon2State('empty-original')
-    setSpoon3State('empty-original')
-    setKettleState('original')
-    setWhiskState('original')
-    setBowlAnimPhase('idle')
-    setCupShooting(false)
-    resetAllStationProgress()
   }
 
   function getBowlImage() {
@@ -330,7 +373,11 @@ function WhiskingStationPage() {
           alt=""
           draggable="false"
           onClick={handleMatchaTin1Click}
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+          style={{
+            cursor: tinIsDisabled(1) ? 'not-allowed' : 'pointer',
+            pointerEvents: tinIsDisabled(1) ? 'none' : 'auto',
+            opacity: tinIsDisabled(1) ? 0.45 : 1,
+          }}
         />
         <img
           className="whisking-matcha-tin-2"
@@ -338,7 +385,11 @@ function WhiskingStationPage() {
           alt=""
           draggable="false"
           onClick={handleMatchaTin2Click}
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+          style={{
+            cursor: tinIsDisabled(2) ? 'not-allowed' : 'pointer',
+            pointerEvents: tinIsDisabled(2) ? 'none' : 'auto',
+            opacity: tinIsDisabled(2) ? 0.45 : 1,
+          }}
         />
         <img
           className="whisking-matcha-tin-3"
@@ -346,7 +397,11 @@ function WhiskingStationPage() {
           alt=""
           draggable="false"
           onClick={handleMatchaTin3Click}
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+          style={{
+            cursor: tinIsDisabled(3) ? 'not-allowed' : 'pointer',
+            pointerEvents: tinIsDisabled(3) ? 'none' : 'auto',
+            opacity: tinIsDisabled(3) ? 0.45 : 1,
+          }}
         />
         {whiskingCup && (
           <img
@@ -367,11 +422,6 @@ function WhiskingStationPage() {
             <img src={readyButton} alt="" draggable={false} />
           </button>
         )}
-        <div className="topping-size-toggle">
-          <button type="button" onClick={handleReset}>
-            Reset
-          </button>
-        </div>
         <StationDock currentStation="whisking" />
       </section>
     </main>

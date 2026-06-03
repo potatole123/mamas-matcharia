@@ -10,7 +10,7 @@ export type IceLevel = (typeof ICE_LEVEL)[number];
 export const MATCHA = ["regular", "premium", "super premium"] as const;
 export type Matcha = (typeof MATCHA)[number];
 
-export const MILK = ["whole", "oat", "soy", "almond", "none"] as const;
+export const MILK = ["whole", "oat", "soy", "almond"] as const;
 export type Milk = (typeof MILK)[number];
 
 export const FLAVOR = ["strawberry", "mango", "pandan", "none"] as const;
