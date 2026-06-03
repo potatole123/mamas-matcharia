@@ -101,15 +101,27 @@ function serializeRecipeSet(recipeSet: unknown) {
   }
 }
 
-function getDisplayName(firebaseUser: admin.auth.DecodedIdToken) {
-  const name = typeof firebaseUser.name === "string" ? firebaseUser.name.trim() : ""
+type FirebaseUserIdentity = {
+  uid: string
+  email?: string | undefined
+  name?: string | undefined
+  displayName?: string | undefined
+}
+
+function getDisplayName(firebaseUser: FirebaseUserIdentity) {
+  const name =
+    typeof firebaseUser.name === "string"
+      ? firebaseUser.name.trim()
+      : typeof firebaseUser.displayName === "string"
+        ? firebaseUser.displayName.trim()
+        : ""
   const email = typeof firebaseUser.email === "string" ? firebaseUser.email.trim() : ""
   const emailName = email.split("@")[0]?.trim() ?? ""
 
   return name || emailName || `Player ${firebaseUser.uid.slice(0, 6)}`
 }
 
-function getUsername(firebaseUser: admin.auth.DecodedIdToken) {
+function getUsername(firebaseUser: FirebaseUserIdentity) {
   const email = typeof firebaseUser.email === "string" ? firebaseUser.email.trim() : ""
   const baseValue = email.split("@")[0] ?? getDisplayName(firebaseUser)
   const normalizedBase = baseValue
@@ -208,12 +220,15 @@ export const registerUser: RequestHandler = async (req, res) => {
     const usernameInput = body?.username
     const passwordInput = body?.password
     const email = assertRequiredString(emailInput, "email").toLowerCase()
-    const username = assertRequiredString(usernameInput, "username")
     const password = assertRequiredString(passwordInput, "password")
+    const requestedUsername =
+      typeof usernameInput === "string" && usernameInput.trim().length > 0
+        ? usernameInput.trim()
+        : null
 
-    const existingUser = await UserModel.findOne({
-      $or: [{ email }, { username }],
-    })
+    const existingUser = await UserModel.findOne(
+      requestedUsername ? { $or: [{ email }, { username: requestedUsername }] } : { email },
+    )
 
     if (existingUser) {
       return res.status(409).json({
@@ -224,8 +239,16 @@ export const registerUser: RequestHandler = async (req, res) => {
     firebaseUser = await admin.auth().createUser({
       email,
       password,
-      displayName: username,
+      ...(requestedUsername ? { displayName: requestedUsername } : {}),
     })
+
+    const userIdentity = {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email ?? email,
+      displayName: firebaseUser.displayName,
+    }
+    const username = requestedUsername ?? getUsername(userIdentity)
+    const displayName = requestedUsername ?? getDisplayName(userIdentity)
 
     const user = await UserModel.create({
       userId: firebaseUser.uid,
@@ -238,7 +261,7 @@ export const registerUser: RequestHandler = async (req, res) => {
 
     const profile = await ProfileModel.create({
       userId: firebaseUser.uid,
-      displayName: username,
+      displayName,
       coinBalance: 0,
       highestDayUnlocked: 1,
       tutorialCompleted: false,

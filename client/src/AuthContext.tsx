@@ -1,11 +1,11 @@
 import {
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 
 import {
-  createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<AuthProfile | null>(null)
   const [username, setUsername] = useState<string | null>(null)
   const [loading, setLoading] = useState(Boolean(auth))
+  const pendingRegisteredSessionRef = useRef<AuthSessionPayload | null>(null)
   const value = {
     user,
     profile,
@@ -65,6 +66,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!user) {
         setProfile(null)
         setUsername(null)
+        setLoading(false)
+        return
+      }
+
+      const registeredSession = pendingRegisteredSessionRef.current
+
+      if (registeredSession) {
+        pendingRegisteredSessionRef.current = null
+        setUsername(registeredSession.profile?.displayName ?? registeredSession.user.username)
+        setProfile(registeredSession.profile)
         setLoading(false)
         return
       }
@@ -120,12 +131,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return Promise.reject(firebaseConfigError)
     }
 
-    const credential = await createUserWithEmailAndPassword(auth, email, password)
+    const registeredSession = await Fetch<AuthSessionPayload>('/api/authentication/register', {
+      method: 'POST',
+      body: { email, password },
+    })
 
+    pendingRegisteredSessionRef.current = registeredSession
     try {
-      await syncBackendSession(credential.user)
+      const credential = await signInWithEmailAndPassword(auth, email, password)
+      setUser(credential.user)
+      setUsername(registeredSession.profile?.displayName ?? registeredSession.user.username)
+      setProfile(registeredSession.profile)
       return credential
     } catch (error) {
+      pendingRegisteredSessionRef.current = null
       await signOut(auth)
       throw error
     }
@@ -147,15 +166,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  function logout() {
+  async function logout() {
     if (!auth || !isFirebaseConfigured) {
       setUser(null)
       setProfile(null)
       setUsername(null)
-      return Promise.resolve()
+      return
     }
 
-    return signOut(auth)
+    try {
+      const token = await auth.currentUser?.getIdToken()
+
+      if (token) {
+        await Fetch<null>('/api/authentication/signout', {
+          method: 'POST',
+          token,
+        })
+      }
+    } catch (error) {
+      console.error('Backend signout failed', error)
+    }
+
+    await signOut(auth)
   }
 
   function getIdToken() {
