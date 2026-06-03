@@ -1,0 +1,52 @@
+.drink-debug-panel {
+  position: fixed;
+  left: 0.5rem;
+  top: 0.5rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  pointer-events: auto;
+}
+
+.drink-debug-panel__toggle {
+  align-self: flex-start;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid rgb(154 202 114 / 45%);
+  border-radius: 0.35rem;
+  background: rgb(20 20 20 / 92%);
+  color: #9aca72;
+  font-family: ui-monospace, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.drink-debug-panel__toggle:hover {
+  background: rgb(30 30 30 / 95%);
+}
+
+.drink-debug-panel__content {
+  max-width: min(28rem, 45vw);
+  max-height: 42vh;
+  overflow: auto;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.5rem;
+  background: rgb(20 20 20 / 92%);
+  color: #e8e8e8;
+  font-family: ui-monospace, monospace;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.drink-debug-panel__title {
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+  color: #9aca72;
+}
+
+.drink-debug-panel__body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

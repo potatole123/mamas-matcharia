@@ -6,6 +6,13 @@ import readyButton from '../assets/ready_button.png'
 import { useDrinkProgress } from '../DrinkProgressContext'
 import { getCupPreviewSrc } from '../drinkCup'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
+import {
+  CREAM_UI_TO_RECIPE,
+  POWDER_UI_TO_RECIPE,
+  type ToppingCreamOption,
+  type ToppingPowderOption,
+} from '../utils/drinkMappings'
+import type { CreamTop, Powder } from '../../../server/src/types/enums'
 import creamMatcha from '../assets/topping/matcha_cream.png'
 import creamVanilla from '../assets/topping/vanilla_cream.png'
 import creamUbe from '../assets/topping/ube_cream.png'
@@ -29,9 +36,23 @@ import largeCreamUbe from '../assets/topping/drinks_with_cream/large_ube_cream.p
 import largeCreamYuzu from '../assets/topping/drinks_with_cream/large_yuzu_cream.png'
 import './StationPage.css'
 
-type PowderOption = 'black-sesame' | 'hojicha' | 'kinako' | 'matcha'
-type CreamOption = 'matcha' | 'vanilla' | 'ube' | 'yuzu'
+type PowderOption = ToppingPowderOption
+type CreamOption = ToppingCreamOption
 type DrinkSize = 'small' | 'large'
+
+const CREAM_RECIPE_TO_UI: Partial<Record<CreamTop, CreamOption>> = {
+  matcha: 'matcha',
+  vanilla: 'vanilla',
+  ube: 'ube',
+  yuzu: 'yuzu',
+}
+
+const POWDER_RECIPE_TO_UI: Partial<Record<Powder, PowderOption>> = {
+  'black sesame': 'black-sesame',
+  hojicha: 'hojicha',
+  kinako: 'kinako',
+  matcha: 'matcha',
+}
 type ComboPowderFolder = 'black_sesame' | 'hojicha' | 'kinako' | 'matcha_powder'
 
 const POWDER_DRINK_IMAGES: Record<DrinkSize, Record<PowderOption, string>> = {
@@ -79,14 +100,24 @@ const COMBO_DRINK_IMAGE_BY_PATH = import.meta.glob('../assets/topping/drinks_wit
 const CUP_SHOOT_MS = 900
 
 function ToppingStationPage() {
-  const { ticketStore, showOrderTicketText, revealedOrderLineCount, swapMainWithHistory } =
-    useOrderTicketsContext()
-  const { toppingCup, clearToppingCup } = useDrinkProgress()
-  const [selectedCream, setSelectedCream] = useState<CreamOption | null>(null)
+  const {
+    ticketStore,
+    showOrderTicketText,
+    revealedOrderLineCount,
+    swapMainWithHistory,
+    beginNewOrder,
+  } = useOrderTicketsContext()
+  const { drinkAtTopping, updateDrink, submitDrinkWithOrder, clearToppingCup } = useDrinkProgress()
+  const toppingCup = drinkAtTopping?.cupVisual ?? null
+  const selectedCream = drinkAtTopping?.recipe.creamTop
+    ? CREAM_RECIPE_TO_UI[drinkAtTopping.recipe.creamTop] ?? null
+    : null
+  const selectedPowder = drinkAtTopping?.recipe.powder
+    ? POWDER_RECIPE_TO_UI[drinkAtTopping.recipe.powder] ?? null
+    : null
   const [cupShooting, setCupShooting] = useState(false)
   const cupSendFinishedRef = useRef(false)
   const [animatingCream, setAnimatingCream] = useState<CreamOption | null>(null)
-  const [selectedPowder, setSelectedPowder] = useState<PowderOption | null>(null)
   const [animatingPowder, setAnimatingPowder] = useState<PowderOption | null>(null)
   const pendingTimeoutsRef = useRef<number[]>([])
   const CREAM_ANIMATION_MS = 1500
@@ -94,18 +125,30 @@ function ToppingStationPage() {
   const POWDER_ANIMATION_MS = 1800
   const POWDER_PREVIEW_UPDATE_MS = 1450
   const isAnimating = Boolean(animatingCream || animatingPowder)
-  const showReadyButton = Boolean(toppingCup) && !cupShooting
+  const showReadyButton = Boolean(drinkAtTopping && toppingCup) && !cupShooting
 
   function finishSendCupFromTopping() {
     if (cupSendFinishedRef.current) return
     cupSendFinishedRef.current = true
-    clearToppingCup()
+
+    const ticket = ticketStore.mainTicket
+    if (drinkAtTopping) {
+      if (ticket) {
+        submitDrinkWithOrder(ticket)
+        beginNewOrder()
+      } else {
+        clearToppingCup()
+      }
+    }
+
+    clearPendingTimeouts()
+    setAnimatingCream(null)
+    setAnimatingPowder(null)
     setCupShooting(false)
-    resetToppings()
   }
 
   function handleReadyClick() {
-    if (!toppingCup || cupShooting) return
+    if (!drinkAtTopping || !toppingCup || cupShooting) return
     cupSendFinishedRef.current = false
     setCupShooting(true)
     trackTimeout(() => {
@@ -134,19 +177,11 @@ function ToppingStationPage() {
     }
   }, [])
 
-  function resetToppings() {
-    clearPendingTimeouts()
-    setSelectedCream(null)
-    setSelectedPowder(null)
-    setAnimatingCream(null)
-    setAnimatingPowder(null)
-  }
-
   function handleCreamClick(cream: CreamOption) {
-    if (!toppingCup || isAnimating || selectedCream || selectedPowder) return
+    if (!drinkAtTopping || !toppingCup || isAnimating || selectedCream || selectedPowder) return
     setAnimatingCream(cream)
     trackTimeout(() => {
-      setSelectedCream(cream)
+      updateDrink(drinkAtTopping.id, { recipe: { creamTop: CREAM_UI_TO_RECIPE[cream] } })
     }, CREAM_PREVIEW_UPDATE_MS)
     trackTimeout(() => {
       setAnimatingCream(null)
@@ -154,10 +189,10 @@ function ToppingStationPage() {
   }
 
   function handlePowderClick(powder: PowderOption) {
-    if (!toppingCup || isAnimating || selectedPowder) return
+    if (!drinkAtTopping || !toppingCup || isAnimating || selectedPowder) return
     setAnimatingPowder(powder)
     trackTimeout(() => {
-      setSelectedPowder(powder)
+      updateDrink(drinkAtTopping.id, { recipe: { powder: POWDER_UI_TO_RECIPE[powder] } })
     }, POWDER_PREVIEW_UPDATE_MS)
     trackTimeout(() => {
       setAnimatingPowder(null)
@@ -306,11 +341,6 @@ function ToppingStationPage() {
             <img src={readyButton} alt="" draggable={false} />
           </button>
         )}
-        <div className="topping-size-toggle">
-          <button type="button" onClick={resetToppings} disabled={!toppingCup}>
-            Reset
-          </button>
-        </div>
         <StationDock currentStation="topping" />
       </section>
     </main>
