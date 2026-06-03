@@ -13,13 +13,18 @@ export function uniqueUser() {
   };
 }
 
-export async function registerUser(user) {
+export async function registerUser(user, options = {}) {
+  const body = {
+    email: user.email,
+    password: user.password
+  };
+
+  if (options.includeUsername !== false) {
+    body.username = user.username;
+  }
+
   const response = await api("/api/authentication/register", {
-    body: {
-      email: user.email,
-      password: user.password,
-      username: user.username
-    }
+    body
   });
 
   if (response.status === 201) {
