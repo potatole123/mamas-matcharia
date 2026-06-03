@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import matchaInterior from '../assets/order/matcha-interior.png'
 import bearista from '../assets/order/bearista-cropped.png'
 import bearSmile from '../assets/order/bear-smile.png'
@@ -6,12 +6,16 @@ import bearLaugh from '../assets/order/bear-laugh.png'
 import bearOpen from '../assets/order/bear-open.png'
 import speechBubble from '../assets/order/speech-bubble.png'
 import orderCounter from '../assets/order/order-counter.png'
-import OrderTicketBoard, { ORDER_TICKET_FIELDS } from '../components/OrderTicketBoard'
+import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
+import { useGameDayContext } from '../GameDayContext'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
+import { useTutorialContext, type OrderStationTutorialStep } from '../TutorialContext'
+import { ORDER_TICKET_FIELDS, type TicketData } from '../hooks/useOrderTickets'
+import type { ScheduledNpc } from '../types/game'
 import './StationPage.css'
 
-type BearPhase = 'idle' | 'spawn' | 'moving' | 'at-counter' | 'talking' | 'exiting' | 'done'
+type BearPhase = 'idle' | 'spawn' | 'moving' | 'at-counter' | 'talking' | 'exiting'
 
 const TALKING_BEAR_EXPRESSIONS = [bearSmile, bearLaugh, bearOpen]
 
@@ -35,16 +39,47 @@ const BEAR_TALKING_DURATION_MS = 3200
 const BEAR_EXIT_MS = 1100
 const BEAR_RESET_DELAY_MS = 250
 const BEAR_CYCLE_MS = 200
+const LEVEL_BANNER_DURATION_MS = 3000
 const ORDER_TICKET_LINE_REVEAL_INTERVAL_MS = Math.max(
   120,
   Math.floor(BEAR_TALKING_DURATION_MS / ORDER_TICKET_FIELDS.length),
 )
 
+const ORDER_STATION_TUTORIAL_MESSAGES: Record<
+  Exclude<OrderStationTutorialStep, 'complete'>,
+  string
+> = {
+  welcome:
+    'Welcome to Mama\'s Matcharia! Since our store went viral on MikMok the other day, lots of bruins are readily lining up at our store eager to try our matcha.',
+  'take-order': 'When a bruin finally makes it to the door, click on them to take their order.',
+  'customer-talking': 'Wow, this bruin really likes to yap.',
+  'order-ticket':
+    'Our first customer\'s order is written on this order ticket. When you have multiple active orders, you can toggle between them by clicking on the desired order ticket in the top bar. Now feel free to take more orders, or get to making your first drink!',
+}
+
+function toTicketData(npc: ScheduledNpc): TicketData {
+  return {
+    orderId: npc.order.orderId,
+    orderNumber: npc.orderNumber,
+    recipe: npc.order.recipe,
+  }
+}
+
 function OrderStationPage() {
   const [phase, setPhase] = useState<BearPhase>('idle')
   const [bearExpressionIndex, setBearExpressionIndex] = useState(0)
   const [bearTransitionMs, setBearTransitionMs] = useState(0)
-  const [animationRunId, setAnimationRunId] = useState(0)
+  const [activeNpc, setActiveNpc] = useState<ScheduledNpc | null>(null)
+  const [isLevelBannerVisible, setIsLevelBannerVisible] = useState(false)
+  const { orderStationStep, setOrderStationStep } = useTutorialContext()
+  const {
+    dayState,
+    waitingNpcs,
+    dayStartError,
+    startDay,
+    consumeLevelBanner,
+    claimWaitingNpc,
+  } = useGameDayContext()
   const {
     ticketStore,
     showOrderTicketText,
@@ -57,25 +92,49 @@ function OrderStationPage() {
   } = useOrderTicketsContext()
   const timeoutsRef = useRef<number[]>([])
   const stationStageRef = useRef<HTMLElement | null>(null)
+  const tutorialStepRef = useRef(orderStationStep)
 
-  const clearPendingTimeouts = () => {
+  const clearPendingTimeouts = useCallback(() => {
     for (const timeoutId of timeoutsRef.current) {
       window.clearTimeout(timeoutId)
     }
     timeoutsRef.current = []
-  }
+  }, [])
 
   useEffect(() => {
-    if (animationRunId === 0) {
+    void startDay().catch((error: unknown) => {
+      console.error('Could not start game day', error)
+    })
+  }, [startDay])
+
+  useEffect(() => {
+    tutorialStepRef.current = orderStationStep
+  }, [orderStationStep])
+
+  useEffect(() => {
+    if (!dayState || !consumeLevelBanner()) {
+      return
+    }
+
+    const showBannerTimeoutId = window.setTimeout(() => setIsLevelBannerVisible(true), 0)
+    const hideBannerTimeoutId = window.setTimeout(
+      () => setIsLevelBannerVisible(false),
+      LEVEL_BANNER_DURATION_MS,
+    )
+
+    return () => {
+      window.clearTimeout(showBannerTimeoutId)
+      window.clearTimeout(hideBannerTimeoutId)
+    }
+  }, [consumeLevelBanner, dayState])
+
+  useEffect(() => {
+    if (!activeNpc) {
       return
     }
 
     clearPendingTimeouts()
-    const nextTicket = beginNewOrder()
-
-    setBearExpressionIndex(0)
-    setBearTransitionMs(0)
-    setPhase('spawn')
+    const nextTicket = toTicketData(activeNpc)
 
     const schedule = (callback: () => void, delayMs: number) => {
       const timeoutId = window.setTimeout(callback, delayMs)
@@ -86,6 +145,13 @@ function OrderStationPage() {
     const startTalkingDelayMs = startMoveDelayMs + BEAR_MOVE_IN_MS + BEAR_PRE_TALK_DELAY_MS
     const startExitDelayMs = startTalkingDelayMs + BEAR_TALKING_DURATION_MS
     const finishDelayMs = startExitDelayMs + BEAR_EXIT_MS + BEAR_RESET_DELAY_MS
+
+    schedule(() => {
+      beginNewOrder()
+      setBearExpressionIndex(0)
+      setBearTransitionMs(0)
+      setPhase('spawn')
+    }, 0)
 
     schedule(() => {
       setBearTransitionMs(BEAR_MOVE_IN_MS)
@@ -112,11 +178,22 @@ function OrderStationPage() {
 
     schedule(() => {
       setBearTransitionMs(0)
-      setPhase('done')
+      setPhase('idle')
+      setActiveNpc(null)
+      if (tutorialStepRef.current === 'customer-talking') {
+        setOrderStationStep('order-ticket')
+      }
     }, finishDelayMs)
 
     return clearPendingTimeouts
-  }, [animationRunId, beginNewOrder, markOrderFullyRevealed, showGeneratedOrder])
+  }, [
+    activeNpc,
+    beginNewOrder,
+    clearPendingTimeouts,
+    markOrderFullyRevealed,
+    setOrderStationStep,
+    showGeneratedOrder,
+  ])
 
   useEffect(() => {
     if (phase !== 'talking') {
@@ -144,17 +221,16 @@ function OrderStationPage() {
 
   const isAtCounter = phase === 'moving' || phase === 'at-counter' || phase === 'talking'
   const isExiting = phase === 'exiting'
-  const isDone = phase === 'done'
 
-  const customerBearLeftPct = isDone || isExiting
+  const customerBearLeftPct = isExiting
     ? CUSTOMER_BEAR_EXIT_LEFT_PCT
     : isAtCounter
       ? CUSTOMER_BEAR_TARGET_LEFT_PCT
       : CUSTOMER_BEAR_START_LEFT_PCT
   const customerBearTopPct =
-    isAtCounter || isExiting || isDone ? CUSTOMER_BEAR_TARGET_TOP_PCT : CUSTOMER_BEAR_START_TOP_PCT
+    isAtCounter || isExiting ? CUSTOMER_BEAR_TARGET_TOP_PCT : CUSTOMER_BEAR_START_TOP_PCT
   const customerBearWidthPct =
-    isAtCounter || isExiting || isDone
+    isAtCounter || isExiting
       ? CUSTOMER_BEAR_TARGET_WIDTH_PCT
       : CUSTOMER_BEAR_TARGET_WIDTH_PCT * CUSTOMER_BEAR_START_SIZE_SCALE
 
@@ -164,10 +240,28 @@ function OrderStationPage() {
     width: `${customerBearWidthPct}%`,
     ['--order-bear-transition-ms' as string]: `${bearTransitionMs}ms`,
   }
-  const isInteractionLocked = phase !== 'idle' && phase !== 'done'
+  const isWelcomeTutorialStep = orderStationStep === 'welcome'
+  const isInteractionLocked = phase !== 'idle' || activeNpc !== null || isWelcomeTutorialStep
+  const shouldRenderCustomer = activeNpc !== null || waitingNpcs.length > 0
+  const tutorialMessage =
+    orderStationStep && orderStationStep !== 'complete'
+      ? ORDER_STATION_TUTORIAL_MESSAGES[orderStationStep]
+      : null
+  const shouldShowTutorialContinue =
+    orderStationStep === 'welcome' || orderStationStep === 'order-ticket'
 
   const handleStageClick = (event: MouseEvent<HTMLElement>) => {
-    if (isInteractionLocked) {
+    if (orderStationStep === 'welcome') {
+      setOrderStationStep('take-order')
+      return
+    }
+
+    if (orderStationStep === 'order-ticket') {
+      setOrderStationStep('complete')
+      return
+    }
+
+    if (isInteractionLocked || waitingNpcs.length === 0) {
       return
     }
 
@@ -198,7 +292,16 @@ function OrderStationPage() {
       return
     }
 
-    setAnimationRunId((previous) => previous + 1)
+    const nextNpc = waitingNpcs[0]
+    if (!nextNpc) {
+      return
+    }
+
+    claimWaitingNpc(nextNpc.npcId)
+    setActiveNpc(nextNpc)
+    if (orderStationStep === 'take-order') {
+      setOrderStationStep('customer-talking')
+    }
   }
 
   return (
@@ -209,17 +312,37 @@ function OrderStationPage() {
     >
       <section className="station-stage" ref={stationStageRef}>
         <img className="station-background" src={matchaInterior} alt="" draggable="false" />
-        <img
-          className="order-bear-customer"
-          src={TALKING_BEAR_EXPRESSIONS[bearExpressionIndex]}
-          alt=""
-          draggable="false"
-          style={customerBearStyle}
-        />
+        {shouldRenderCustomer && (
+          <img
+            className="order-bear-customer"
+            src={TALKING_BEAR_EXPRESSIONS[bearExpressionIndex]}
+            alt=""
+            draggable="false"
+            style={customerBearStyle}
+          />
+        )}
         <img className="order-counter" src={orderCounter} alt="" draggable="false" />
         <img className="order-bearista" src={bearista} alt="" draggable="false" />
+        {isLevelBannerVisible && dayState && (
+          <p className="station-level-banner">Level {dayState.day.level}</p>
+        )}
+        {tutorialMessage && (
+          <aside className="station-tutorial-message" aria-live="polite">
+            <p>{tutorialMessage}</p>
+            {shouldShowTutorialContinue && (
+              <span className="station-tutorial-next">
+                Click anywhere to continue <b aria-hidden="true">›</b>
+              </span>
+            )}
+          </aside>
+        )}
         {phase === 'talking' && (
           <img className="order-speech-bubble" src={speechBubble} alt="" draggable="false" />
+        )}
+        {dayStartError && (
+          <p className="station-day-error" role="alert">
+            Could not start the game day.
+          </p>
         )}
         <OrderTicketBoard
           ticketStore={ticketStore}

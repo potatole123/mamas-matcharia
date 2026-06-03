@@ -32,6 +32,7 @@ export type LevelConfig = {
   level: number
   targetScore: number
   npcCount: number
+  npcFrequencySeconds: number
   recipeSet: RecipeSetInput
 }
 
@@ -40,6 +41,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
     level: 1,
     targetScore: 300,
     npcCount: 4,
+    npcFrequencySeconds: 6,
     recipeSet: {
       cupSizeSet: ["small"],
       tempSet: ["iced"],
@@ -57,6 +59,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
     level: 2,
     targetScore: 500,
     npcCount: 5,
+    npcFrequencySeconds: 5.5,
     recipeSet: {
       cupSizeSet: ["small", "large"],
       tempSet: ["hot", "iced"],
@@ -74,6 +77,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
     level: 3,
     targetScore: 750,
     npcCount: 7,
+    npcFrequencySeconds: 5,
     recipeSet: {
       cupSizeSet: ["small", "large"],
       tempSet: ["hot", "iced"],
@@ -91,6 +95,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
     level: 4,
     targetScore: 1000,
     npcCount: 9,
+    npcFrequencySeconds: 4.5,
     recipeSet: {
       cupSizeSet: ["small", "large"],
       tempSet: ["hot", "iced"],
@@ -108,6 +113,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
     level: 5,
     targetScore: 1250,
     npcCount: 11,
+    npcFrequencySeconds: 4,
     recipeSet: {
       cupSizeSet: ["small", "large"],
       tempSet: ["hot", "iced"],
@@ -134,6 +140,7 @@ export function getLevelConfig(level: number): LevelConfig {
     level,
     targetScore: 1250 + (level - 5) * 250,
     npcCount: Math.min(20, 13 + (level - 5) * 2),
+    npcFrequencySeconds: Math.max(2, 4 - (level - 5) * 0.25),
     recipeSet: {},
   }
 }
