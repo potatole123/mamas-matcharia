@@ -13,6 +13,14 @@ export function env(...names) {
   return undefined;
 }
 
+export function requiredEnv(...names) {
+  const value = env(...names);
+  if (!value) {
+    throw new Error(`Missing required env var: ${names.join(" or ")}`);
+  }
+  return value;
+}
+
 export function apiBaseUrl() {
   const explicit = env("API_BASE_URL");
   if (explicit) {
@@ -23,6 +31,17 @@ export function apiBaseUrl() {
   return `http://127.0.0.1:${port}`;
 }
 
+export function mongoUri() {
+  return env("TEST_MONGODB_URI", "MONGODB_URI", "MONGO_URI", "MONGO_CONNECTION");
+}
+
+export function mongoDatabase() {
+  return env("TEST_MONGODB_DATABASE", "MONGODB_DATABASE", "MONGO_DATABASE", "DB_NAME");
+}
+
+export function firebaseWebApiKey() {
+  return requiredEnv("FIREBASE_WEB_API_KEY", "VITE_FIREBASE_API_KEY");
+}
 
 function loadEnvFiles() {
   const loaded = {};
