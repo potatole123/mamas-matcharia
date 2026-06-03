@@ -4,7 +4,7 @@ import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
 import readyButton from '../assets/ready_button.png'
 import { useDrinkProgress } from '../DrinkProgressContext'
-import { getCupPreviewSrc } from '../drinkCup'
+import { getCupPreviewSrc, type BaseCupSnapshot } from '../drinkCup'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
 import {
   CREAM_UI_TO_RECIPE,
@@ -97,7 +97,11 @@ const COMBO_DRINK_IMAGE_BY_PATH = import.meta.glob('../assets/topping/drinks_wit
   import: 'default',
 }) as Record<string, string>
 
-const CUP_SHOOT_MS = 900
+type DepartingToppingCup = {
+  cup: BaseCupSnapshot
+  cream: CreamOption | null
+  powder: PowderOption | null
+}
 
 function ToppingStationPage() {
   const {
@@ -116,7 +120,7 @@ function ToppingStationPage() {
     ? POWDER_RECIPE_TO_UI[drinkAtTopping.recipe.powder] ?? null
     : null
   const [cupShooting, setCupShooting] = useState(false)
-  const cupSendFinishedRef = useRef(false)
+  const [departingServe, setDepartingServe] = useState<DepartingToppingCup | null>(null)
   const [animatingCream, setAnimatingCream] = useState<CreamOption | null>(null)
   const [animatingPowder, setAnimatingPowder] = useState<PowderOption | null>(null)
   const pendingTimeoutsRef = useRef<number[]>([])
@@ -127,38 +131,37 @@ function ToppingStationPage() {
   const isAnimating = Boolean(animatingCream || animatingPowder)
   const showReadyButton = Boolean(drinkAtTopping && toppingCup) && !cupShooting
 
-  function finishSendCupFromTopping() {
-    if (cupSendFinishedRef.current) return
-    cupSendFinishedRef.current = true
+  const cupOnStage = toppingCup ?? departingServe?.cup ?? null
+  const previewCream = selectedCream ?? departingServe?.cream ?? null
+  const previewPowder = selectedPowder ?? departingServe?.powder ?? null
+
+  function handleReadyClick() {
+    if (!drinkAtTopping || !toppingCup || cupShooting) return
+
+    setDepartingServe({
+      cup: toppingCup,
+      cream: selectedCream,
+      powder: selectedPowder,
+    })
 
     const ticket = ticketStore.mainTicket
-    if (drinkAtTopping) {
-      if (ticket) {
-        submitDrinkWithOrder(ticket)
-        beginNewOrder()
-      } else {
-        clearToppingCup()
-      }
+    if (ticket) {
+      submitDrinkWithOrder(ticket)
+      beginNewOrder()
+    } else {
+      clearToppingCup()
     }
 
     clearPendingTimeouts()
     setAnimatingCream(null)
     setAnimatingPowder(null)
-    setCupShooting(false)
-  }
-
-  function handleReadyClick() {
-    if (!drinkAtTopping || !toppingCup || cupShooting) return
-    cupSendFinishedRef.current = false
     setCupShooting(true)
-    trackTimeout(() => {
-      finishSendCupFromTopping()
-    }, CUP_SHOOT_MS)
   }
 
   function handleCupShootAnimationEnd() {
     if (!cupShooting) return
-    finishSendCupFromTopping()
+    setCupShooting(false)
+    setDepartingServe(null)
   }
 
   function trackTimeout(callback: () => void, delayMs: number) {
@@ -200,28 +203,30 @@ function ToppingStationPage() {
   }
 
   function getDrinkPreviewImage() {
-    if (!toppingCup) return ''
+    if (!cupOnStage) return ''
 
-    const drinkSize = toppingCup.size
+    const drinkSize = cupOnStage.size
 
-    if (selectedCream && selectedPowder) {
-      const comboPowderFolder = COMBO_POWDER_FOLDER_BY_OPTION[selectedPowder]
-      const comboPath = `../assets/topping/drinks_with_cream_and_${comboPowderFolder}/${drinkSize}_${selectedCream}_cream_${comboPowderFolder}.png`
-      return COMBO_DRINK_IMAGE_BY_PATH[comboPath] ?? CREAM_DRINK_IMAGES[drinkSize][selectedCream]
+    if (previewCream && previewPowder) {
+      const comboPowderFolder = COMBO_POWDER_FOLDER_BY_OPTION[previewPowder]
+      const comboPath = `../assets/topping/drinks_with_cream_and_${comboPowderFolder}/${drinkSize}_${previewCream}_cream_${comboPowderFolder}.png`
+      return COMBO_DRINK_IMAGE_BY_PATH[comboPath] ?? CREAM_DRINK_IMAGES[drinkSize][previewCream]
     }
 
-    if (selectedCream) {
-      return CREAM_DRINK_IMAGES[drinkSize][selectedCream]
+    if (previewCream) {
+      return CREAM_DRINK_IMAGES[drinkSize][previewCream]
     }
 
-    if (selectedPowder) {
-      return POWDER_DRINK_IMAGES[drinkSize][selectedPowder]
+    if (previewPowder) {
+      return POWDER_DRINK_IMAGES[drinkSize][previewPowder]
     }
 
-    return getCupPreviewSrc(toppingCup)
+    return getCupPreviewSrc(cupOnStage)
   }
 
-  const toppingInteractCursor = toppingCup && !isAnimating && !cupShooting ? 'pointer' : 'default'
+  const toppingInteractCursor = drinkAtTopping && toppingCup && !isAnimating && !cupShooting
+    ? 'pointer'
+    : 'default'
 
   return (
     <main className="station-page" aria-label="Topping station page">
@@ -322,9 +327,9 @@ function ToppingStationPage() {
         <div className="topping-label topping-label-hojicha">Hojicha</div>
         <div className="topping-label topping-label-kinako">Kinako</div>
         <div className="topping-label topping-label-matcha-powder">Matcha Powder</div>
-        {toppingCup && (
+        {cupOnStage && (
           <img
-            className={`topping-base-drink topping-base-drink--${toppingCup.size}${cupShooting ? ' is-shooting' : ''}`}
+            className={`topping-base-drink topping-base-drink--${cupOnStage.size}${cupShooting ? ' is-shooting' : ''}`}
             src={getDrinkPreviewImage()}
             alt=""
             draggable="false"

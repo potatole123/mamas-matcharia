@@ -14,7 +14,7 @@ import readyButton from '../assets/ready_button.png'
 import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
 import { useDrinkProgress } from '../DrinkProgressContext'
-import { cupHasIce, getCupPreviewSrc, type DrinkSize } from '../drinkCup'
+import { cupHasIce, getCupPreviewSrc, type BaseCupSnapshot, type DrinkSize } from '../drinkCup'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
 import { MILK_CARTON_TO_RECIPE, type MilkCartonOption } from '../utils/drinkMappings'
 import type { IceLevel } from '../../../server/src/types/enums'
@@ -30,8 +30,6 @@ type IceSpoonState = 'idle' | 'has-ice' | 'filled-over-cup' | 'empty-return'
 type MilkPourTarget = 'cup' | 'pitcher'
 type MilkAnimPhase = 'idle' | 'over-target' | 'pouring' | 'return'
 type PitcherAnimPhase = 'idle' | 'at-heater' | 'over-cup' | 'pouring' | 'return'
-
-const CUP_SHOOT_MS = 900
 
 const ICE_SCOOP_DELAY_MS = 500
 const ICE_MOVE_DELAY_MS = 500
@@ -96,7 +94,7 @@ function BaseStationPage() {
   const showCupSizePopup = canCreateDrinkAtBase
   const showCupOnBase = Boolean(drinkAtBase)
   const [cupShooting, setCupShooting] = useState(false)
-  const cupSendFinishedRef = useRef(false)
+  const [departingCup, setDepartingCup] = useState<BaseCupSnapshot | null>(null)
   const [iceSpoonState, setIceSpoonState] = useState<IceSpoonState>('idle')
   const [activeMilk, setActiveMilk] = useState<MilkOption | null>(null)
   const [milkAnimPhase, setMilkAnimPhase] = useState<MilkAnimPhase>('idle')
@@ -135,36 +133,31 @@ function BaseStationPage() {
     }
   }, [])
 
+  const cupVisualOnStage = drinkAtBase?.cupVisual ?? departingCup
+
   function getCupPreviewImage() {
-    if (!drinkAtBase) {
+    if (!cupVisualOnStage) {
       return ''
     }
-    return getCupPreviewSrc(drinkAtBase.cupVisual)
+    return getCupPreviewSrc(cupVisualOnStage)
   }
 
   function handleCupSizeChoice(size: DrinkSize) {
     createDrinkAtBase(size)
   }
 
-  function finishSendCupToWhisking() {
-    if (cupSendFinishedRef.current || !drinkAtBase) return
-    cupSendFinishedRef.current = true
-    sendCupToWhisking({ ...drinkAtBase.cupVisual, hasMilk: true })
-    setCupShooting(false)
-  }
-
   function handleReadyClick() {
     if (!drinkAtBase || drinkAtWhisking || !cupHasMilk || isStationAnimating || cupShooting) return
-    cupSendFinishedRef.current = false
+    const cupSnapshot = { ...drinkAtBase.cupVisual, hasMilk: true }
+    setDepartingCup(cupSnapshot)
+    sendCupToWhisking(cupSnapshot)
     setCupShooting(true)
-    trackTimeout(() => {
-      finishSendCupToWhisking()
-    }, CUP_SHOOT_MS)
   }
 
   function handleCupShootAnimationEnd() {
     if (!cupShooting) return
-    finishSendCupToWhisking()
+    setCupShooting(false)
+    setDepartingCup(null)
   }
 
   function getIceSpoonImage() {
@@ -529,7 +522,7 @@ function BaseStationPage() {
             </div>
           </div>
         )}
-        {showCupOnBase && (
+        {(showCupOnBase || departingCup) && (
           <img
             className={`base-cup-preview${cupShooting ? ' is-shooting' : ''}`}
             src={getCupPreviewImage()}

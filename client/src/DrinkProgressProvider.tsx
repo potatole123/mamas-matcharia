@@ -17,7 +17,6 @@ import {
   type WhiskingStationState,
 } from './stationProgress'
 import type { Matcha } from '../../server/src/types/enums'
-import { matchaGradeToTin } from './utils/drinkMappings'
 import {
   createInProgressDrink,
   type InProgressDrink,
@@ -44,6 +43,10 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
 
   const setBenchMatcha = useCallback((matcha: Matcha) => {
     setBenchMatchaState(matcha)
+  }, [])
+
+  const clearBenchMatcha = useCallback(() => {
+    setBenchMatchaState(null)
   }, [])
 
   const drinkAtBase = stationSlots.base ? drinks[stationSlots.base] ?? null : null
@@ -171,7 +174,8 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
     setLastOrderSubmission(null)
   }, [])
 
-  const whiskingStation = drinkAtWhisking?.whisking ?? standaloneWhiskingStation
+  /** Bowl/bench is shared; a cup at the station can wait for topping while you prep the next batch here. */
+  const whiskingStation = standaloneWhiskingStation
 
   const updateWhiskingStation = useCallback(
     (
@@ -179,22 +183,12 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
         | Partial<WhiskingStationState>
         | ((prev: WhiskingStationState) => Partial<WhiskingStationState>),
     ) => {
-      if (drinkAtWhisking) {
-        const whiskPatch =
-          typeof patch === 'function' ? patch(drinkAtWhisking.whisking) : patch
-
-        updateDrink(drinkAtWhisking.id, {
-          whisking: { ...drinkAtWhisking.whisking, ...whiskPatch },
-        })
-        return
-      }
-
       setStandaloneWhiskingStation((prev) => ({
         ...prev,
         ...(typeof patch === 'function' ? patch(prev) : patch),
       }))
     },
-    [drinkAtWhisking, updateDrink],
+    [],
   )
 
   const whiskingCup = drinkAtWhisking?.cupVisual ?? null
@@ -206,25 +200,12 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      const benchTin =
-        standaloneWhiskingStation.selectedMatchaTin ??
-        (benchMatcha ? matchaGradeToTin(benchMatcha) : null)
-
       updateDrink(drinkAtBase.id, {
         cupVisual: cup,
-        ...(benchMatcha ? { recipe: { matcha: benchMatcha } } : {}),
-        ...(benchTin
-          ? {
-              whisking: {
-                ...drinkAtBase.whisking,
-                selectedMatchaTin: benchTin,
-              },
-            }
-          : {}),
       })
       moveDrinkToStation(drinkAtBase.id, 'whisking')
     },
-    [benchMatcha, drinkAtBase, moveDrinkToStation, standaloneWhiskingStation, updateDrink],
+    [drinkAtBase, moveDrinkToStation, updateDrink],
   )
 
   const updateWhiskingCup = useCallback(
@@ -343,12 +324,14 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
       standaloneWhiskingStation,
       benchMatcha,
       setBenchMatcha,
+      clearBenchMatcha,
       updateWhiskingStation,
     }),
     [
       baseStation,
       benchMatcha,
       setBenchMatcha,
+      clearBenchMatcha,
       standaloneWhiskingStation,
       clearToppingCup,
       clearWhiskingCup,

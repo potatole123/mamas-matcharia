@@ -60,6 +60,7 @@ export type DrinkProgressContextValue = {
   /** Matcha grade chosen on whisking bench when no drink is on the station. */
   benchMatcha: Matcha | null
   setBenchMatcha: (matcha: Matcha) => void
+  clearBenchMatcha: () => void
   updateWhiskingStation: (
     patch:
       | Partial<WhiskingStationState>
