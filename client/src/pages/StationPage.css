@@ -277,7 +277,7 @@
   left: 60%;
   bottom: 30%;
   transform: translateX(-50%);
-  width: 20%;
+  width: 10%;
 }
 
 .order-station-page .order-counter {
@@ -593,6 +593,380 @@
 
 .topping-size-toggle .is-selected {
   background: #9aca72;
+}
+
+.base-cup-preview {
+  position: absolute;
+  left: 48%;
+  bottom: 25%;
+  transform: translateX(-50%);
+  width: 16%;
+  height: auto;
+  z-index: 3;
+}
+
+.base-ready-button {
+  position: absolute;
+  right: 5%;
+  bottom: 8%;
+  z-index: 8;
+  width: 9%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.base-ready-button img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  pointer-events: none;
+}
+
+.base-ready-button:hover {
+  filter: brightness(1.06);
+}
+
+.base-ready-button:active {
+  filter: brightness(0.96);
+}
+
+.base-ready-button:focus-visible {
+  outline: clamp(2px, 0.22vw, 4px) solid #f8f3cf;
+  outline-offset: clamp(2px, 0.3vw, 5px);
+  border-radius: 0.35rem;
+}
+
+.base-size-toggle {
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.4rem;
+  z-index: 6;
+}
+
+.base-size-toggle button {
+  border: 0;
+  border-radius: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  font-size: clamp(0.6rem, 0.9vw, 0.78rem);
+  font-weight: 700;
+  background: rgb(255 248 232 / 92%);
+  color: #4f2514;
+  cursor: pointer;
+}
+
+.base-size-toggle .is-selected {
+  background: #9aca72;
+}
+
+.base-ice-bucket,
+.base-heater {
+  position: absolute;
+  height: auto;
+  z-index: 4;
+}
+
+.base-pitcher {
+  position: absolute;
+  height: auto;
+  z-index: 10;
+}
+
+.base-ice-bucket {
+  left: 60%;
+  top: 60%;
+  width: 25%;
+}
+
+.base-ice-spoon-rest {
+  position: absolute;
+  left: 61%;
+  bottom: 22%;
+  width: 10%;
+  height: auto;
+  z-index: 4;
+  transform: scaleX(-1) rotate(275deg);
+  transition: all 0.5s ease-in-out;
+}
+
+.base-ice-spoon-over-cup {
+  position: absolute;
+  left: 43%;
+  bottom: 40%;
+  width: 10%;
+  height: auto;
+  z-index: 7;
+  transform: scaleX(-1) rotate(180deg);
+  transition: all 0.5s ease-in-out;
+}
+
+.base-heater {
+  left: 16%;
+  top: 18%;
+  width: 25%;
+  z-index: 3;
+}
+
+.base-pitcher {
+  transform-origin: 50% 50%;
+  transition:
+    left 0.8s ease-in-out,
+    top 0.8s ease-in-out,
+    transform 0.6s ease-in-out;
+}
+
+.base-pitcher-rest {
+  left: 20%;
+  top: 50%;
+  width: 13%;
+}
+
+.base-pitcher.base-pitcher-at-heater {
+  left: 22%;
+  top: 24%;
+  width: 13%;
+  z-index: 20;
+}
+
+.base-pitcher.base-pitcher-over-cup {
+  left: 42%;
+  top: 46%;
+  width: 13%;
+  z-index: 20;
+}
+
+.base-pitcher-pouring {
+  transform: rotate(180deg);
+}
+
+.base-pitcher.base-pitcher-return {
+  left: 42%;
+  top: 46%;
+  width: 13%;
+  z-index: 20;
+}
+
+.base-milk.base-milk-returning {
+  z-index: 20;
+}
+
+.base-flavor,
+.base-sweetener {
+  position: absolute;
+  width: 13%;
+  height: auto;
+  z-index: 4;
+}
+
+.base-flavor-strawberry {
+  left: 38%;
+  top: 14%;
+}
+
+.base-flavor-mango {
+  left: 48%;
+  top: 14%;
+}
+
+.base-flavor-pandan {
+  left: 58%;
+  top: 14%;
+}
+
+.base-sweetener-honey {
+  left: 39%;
+  top: 34%;
+}
+
+.base-sweetener-agave {
+  left: 49%;
+  top: 34%;
+}
+
+.base-sweetener-equal {
+  left: 59%;
+  top: 34%;
+}
+
+.base-flavor.is-selected,
+.base-sweetener.is-selected {
+  filter: drop-shadow(0 0 0.25rem rgb(255 248 182 / 90%))
+    drop-shadow(0 0 0.6rem rgb(183 240 120 / 70%));
+}
+
+.base-sweetness-popup {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 9rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.5rem;
+  background: rgb(255 248 232 / 96%);
+  border: 2px solid #9aca72;
+  box-shadow: 0 4px 12px rgb(79 37 20 / 25%);
+  pointer-events: auto;
+}
+
+.base-sweetness-popup__title {
+  margin: 0;
+  font-size: clamp(0.72rem, 1vw, 0.88rem);
+  font-weight: 700;
+  color: #4f2514;
+  text-align: center;
+}
+
+.base-sweetness-popup__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.base-sweetness-popup__actions button,
+.base-sweetness-popup__cancel {
+  border: 0;
+  border-radius: 0.4rem;
+  padding: 0.3rem 0.55rem;
+  font-size: clamp(0.6rem, 0.85vw, 0.75rem);
+  font-weight: 700;
+  background: rgb(255 248 232 / 92%);
+  color: #4f2514;
+  cursor: pointer;
+}
+
+.base-sweetness-popup__actions button:hover,
+.base-sweetness-popup__cancel:hover {
+  background: #e8dfc8;
+}
+
+.base-sweetness-popup__actions button:focus-visible,
+.base-sweetness-popup__cancel:focus-visible {
+  outline: 2px solid #9aca72;
+  outline-offset: 2px;
+}
+
+.base-sweetness-popup__cancel {
+  font-size: clamp(0.55rem, 0.8vw, 0.68rem);
+  font-weight: 600;
+  background: transparent;
+  text-decoration: underline;
+}
+
+.base-milk {
+  position: absolute;
+  left: 3%;
+  width: 15%;
+  height: auto;
+  z-index: 8;
+  transition:
+    left 0.85s ease-in-out,
+    top 0.85s ease-in-out;
+}
+
+.base-milk-whole {
+  top: 22%;
+}
+
+.base-milk-oat {
+  top: 36%;
+}
+
+.base-milk-soy {
+  top: 50%;
+}
+
+.base-milk-almond {
+  top: 64%;
+}
+
+/* Pour positions only — rest spots above stay on .base-milk-* top values */
+.base-milk.base-milk-over-cup {
+  left: 41%;
+  top: 44%;
+  width: 14%;
+  z-index: 15;
+}
+
+.base-milk.base-milk-over-pitcher {
+  left: 20%;
+  top: 38%;
+  width: 13%;
+  z-index: 15;
+}
+
+.base-label {
+  position: absolute;
+  z-index: 5;
+  color: #4f2514;
+  font-size: clamp(0.88rem, 0.9vw, 0.82rem);
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 35%);
+  pointer-events: none;
+}
+
+.base-label-flavor-strawberry {
+  left: 42.5%;
+  top: 33%;
+}
+
+.base-label-flavor-mango {
+  left: 53.5%;
+  top: 33%;
+}
+
+.base-label-flavor-pandan {
+  left: 63.5%;
+  top: 33%;
+}
+
+.base-label-sweetener-honey {
+  left: 43.5%;
+  top: 47%;
+}
+
+.base-label-sweetener-agave {
+  left: 53.5%;
+  top: 47%;
+}
+
+.base-label-sweetener-equal {
+  left: 63.5%;
+  top: 47%;
+}
+
+.base-label[class*='base-label-milk'] {
+  z-index: 9;
+}
+
+.base-label-milk-whole {
+  left: 8.5%;
+  top: 35%;
+}
+
+.base-label-milk-oat {
+  left: 9.5%;
+  top: 49%;
+}
+
+.base-label-milk-soy {
+  left: 9.3%;
+  top: 63%;
+}
+
+.base-label-milk-almond {
+  left: 8%;
+  top: 77%;
 }
 
 .waiting-room-count {
