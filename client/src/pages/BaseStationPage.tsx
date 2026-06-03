@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import stationTable from '../assets/station-shared/station-table.png'
-import smallCup from '../assets/base/small.png'
-import largeCup from '../assets/base/large.png'
-import smallRegularIceCup from '../assets/base/small_regular_ice.png'
-import largeRegularIceCup from '../assets/base/large_regular_ice.png'
-import smallMilkCup from '../assets/base/small_milk.png'
-import largeMilkCup from '../assets/base/large_milk.png'
 import heater from '../assets/base/heater.png'
 import pitcher from '../assets/base/pitcher.png'
 import pitcherMilk from '../assets/base/pitcher_milk.png'
@@ -19,33 +13,23 @@ import milkPour from '../assets/base/milk_pour.png'
 import readyButton from '../assets/ready_button.png'
 import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
+import { useDrinkProgress } from '../DrinkProgressContext'
+import { getCupPreviewSrc, type DrinkSize } from '../drinkCup'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
+import type {
+  FlavorOption,
+  SweetenerOption,
+  SweetnessLevel,
+} from '../stationProgress'
 import './StationPage.css'
 
-type FlavorOption = 'strawberry' | 'mango' | 'pandan'
-type SweetenerOption = 'honey' | 'agave' | 'equal'
-type SweetnessLevel = 'less' | 'perfect' | 'extra'
 type MilkOption = 'whole' | 'oat' | 'soy' | 'almond'
-type DrinkSize = 'small' | 'large'
 type IceSpoonState = 'idle' | 'has-ice' | 'filled-over-cup' | 'empty-return'
 type MilkPourTarget = 'cup' | 'pitcher'
 type MilkAnimPhase = 'idle' | 'over-target' | 'pouring' | 'return'
 type PitcherAnimPhase = 'idle' | 'at-heater' | 'over-cup' | 'pouring' | 'return'
 
-const EMPTY_CUP_IMAGES: Record<DrinkSize, string> = {
-  small: smallCup,
-  large: largeCup,
-}
-
-const REGULAR_ICE_CUP_IMAGES: Record<DrinkSize, string> = {
-  small: smallRegularIceCup,
-  large: largeRegularIceCup,
-}
-
-const MILK_CUP_IMAGES: Record<DrinkSize, string> = {
-  small: smallMilkCup,
-  large: largeMilkCup,
-}
+const CUP_SHOOT_MS = 900
 
 const ICE_SCOOP_DELAY_MS = 500
 const ICE_MOVE_DELAY_MS = 500
@@ -84,18 +68,30 @@ const MILK_OPTIONS: { id: MilkOption; label: string }[] = [
 function BaseStationPage() {
   const { ticketStore, showOrderTicketText, revealedOrderLineCount, swapMainWithHistory } =
     useOrderTicketsContext()
-  const [drinkSize, setDrinkSize] = useState<DrinkSize>('small')
-  const [cupHasIce, setCupHasIce] = useState(false)
-  const [cupHasMilk, setCupHasMilk] = useState(false)
-  const [pitcherHasMilk, setPitcherHasMilk] = useState(false)
+  const {
+    baseStation,
+    updateBaseStation,
+    sendCupToWhisking,
+    resetAllStationProgress,
+  } = useDrinkProgress()
+  const {
+    drinkSize,
+    cupPlaced,
+    cupHasIce,
+    cupHasMilk,
+    pitcherHasMilk,
+    selectedFlavor,
+    selectedSweetener,
+  } = baseStation
+  const showCupSizePopup = !cupPlaced
+  const showCupOnBase = cupPlaced
+  const [cupShooting, setCupShooting] = useState(false)
+  const cupSendFinishedRef = useRef(false)
   const [iceSpoonState, setIceSpoonState] = useState<IceSpoonState>('idle')
   const [activeMilk, setActiveMilk] = useState<MilkOption | null>(null)
   const [milkAnimPhase, setMilkAnimPhase] = useState<MilkAnimPhase>('idle')
   const [milkPourTarget, setMilkPourTarget] = useState<MilkPourTarget>('cup')
   const [pitcherAnimPhase, setPitcherAnimPhase] = useState<PitcherAnimPhase>('idle')
-  const [selectedFlavor, setSelectedFlavor] = useState<FlavorOption | null>(null)
-  const [selectedSweetener, setSelectedSweetener] = useState<SweetenerOption | null>(null)
-  const [sweetnessLevel, setSweetnessLevel] = useState<SweetnessLevel | null>(null)
   const [pendingSweetener, setPendingSweetener] = useState<SweetenerOption | null>(null)
   const pendingTimeoutsRef = useRef<number[]>([])
 
@@ -122,13 +118,40 @@ function BaseStationPage() {
   }, [])
 
   function getCupPreviewImage() {
-    if (cupHasMilk) {
-      return MILK_CUP_IMAGES[drinkSize]
-    }
-    if (cupHasIce) {
-      return REGULAR_ICE_CUP_IMAGES[drinkSize]
-    }
-    return EMPTY_CUP_IMAGES[drinkSize]
+    return getCupPreviewSrc({ size: drinkSize, hasIce: cupHasIce, hasMilk: cupHasMilk })
+  }
+
+  function handleCupSizeChoice(size: DrinkSize) {
+    updateBaseStation({ drinkSize: size, cupPlaced: true })
+  }
+
+  function finishSendCupToWhisking() {
+    if (cupSendFinishedRef.current || !cupPlaced) return
+    cupSendFinishedRef.current = true
+    sendCupToWhisking({ size: drinkSize, hasIce: cupHasIce, hasMilk: true })
+    updateBaseStation({
+      cupPlaced: false,
+      cupHasIce: false,
+      cupHasMilk: false,
+      selectedFlavor: null,
+      selectedSweetener: null,
+      sweetnessLevel: null,
+    })
+    setCupShooting(false)
+  }
+
+  function handleReadyClick() {
+    if (!cupPlaced || !cupHasMilk || isStationAnimating || cupShooting) return
+    cupSendFinishedRef.current = false
+    setCupShooting(true)
+    trackTimeout(() => {
+      finishSendCupToWhisking()
+    }, CUP_SHOOT_MS)
+  }
+
+  function handleCupShootAnimationEnd() {
+    if (!cupShooting) return
+    finishSendCupToWhisking()
   }
 
   function getIceSpoonImage() {
@@ -190,22 +213,18 @@ function BaseStationPage() {
 
   function resetBaseStation() {
     clearPendingTimeouts()
-    setCupHasIce(false)
-    setCupHasMilk(false)
-    setPitcherHasMilk(false)
     setIceSpoonState('idle')
     setActiveMilk(null)
     setMilkAnimPhase('idle')
     setPitcherAnimPhase('idle')
-    setSelectedFlavor(null)
-    setSelectedSweetener(null)
-    setSweetnessLevel(null)
     setPendingSweetener(null)
+    setCupShooting(false)
+    resetAllStationProgress()
   }
 
   function handleFlavorClick(flavorId: FlavorOption) {
     if (!canAddFlavorAndSweetener || pendingSweetener) return
-    setSelectedFlavor(flavorId)
+    updateBaseStation({ selectedFlavor: flavorId })
   }
 
   function handleSweetenerClick(sweetenerId: SweetenerOption) {
@@ -215,13 +234,15 @@ function BaseStationPage() {
 
   function handleSweetnessChoice(level: SweetnessLevel) {
     if (!pendingSweetener) return
-    setSelectedSweetener(pendingSweetener)
-    setSweetnessLevel(level)
+    updateBaseStation({
+      selectedSweetener: pendingSweetener,
+      sweetnessLevel: level,
+    })
     setPendingSweetener(null)
   }
 
   function handleIceBucketClick() {
-    if (isStationAnimating || cupHasIce) return
+    if (!cupPlaced || isStationAnimating || cupHasIce) return
 
     setIceSpoonState('has-ice')
 
@@ -230,7 +251,7 @@ function BaseStationPage() {
     }, ICE_SCOOP_DELAY_MS)
 
     trackTimeout(() => {
-      setCupHasIce(true)
+      updateBaseStation({ cupHasIce: true })
       setIceSpoonState('empty-return')
     }, ICE_SCOOP_DELAY_MS + ICE_MOVE_DELAY_MS + ICE_POUR_DELAY_MS)
 
@@ -240,7 +261,7 @@ function BaseStationPage() {
   }
 
   function handlePitcherClick() {
-    if (isStationAnimating || !pitcherHasMilk || cupHasMilk) return
+    if (!cupPlaced || isStationAnimating || !pitcherHasMilk || cupHasMilk) return
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -257,8 +278,7 @@ function BaseStationPage() {
     }, PITCHER_TO_HEATER_MS + PITCHER_TO_CUP_MS)
 
     trackTimeout(() => {
-      setCupHasMilk(true)
-      setPitcherHasMilk(false)
+      updateBaseStation({ cupHasMilk: true, pitcherHasMilk: false })
       setPitcherAnimPhase('return')
     }, PITCHER_TO_HEATER_MS + PITCHER_TO_CUP_MS + PITCHER_ROTATE_MS + PITCHER_POUR_MS)
 
@@ -268,7 +288,7 @@ function BaseStationPage() {
   }
 
   function handleMilkClick(milkId: MilkOption) {
-    if (isStationAnimating) return
+    if (!cupPlaced || isStationAnimating) return
 
     const target: MilkPourTarget = cupHasIce ? 'cup' : 'pitcher'
     if (target === 'cup' && cupHasMilk) return
@@ -289,9 +309,9 @@ function BaseStationPage() {
 
     trackTimeout(() => {
       if (target === 'cup') {
-        setCupHasMilk(true)
+        updateBaseStation({ cupHasMilk: true })
       } else {
-        setPitcherHasMilk(true)
+        updateBaseStation({ pitcherHasMilk: true })
       }
       setMilkAnimPhase('return')
     }, MILK_MOVE_DELAY_MS + MILK_POUR_DELAY_MS)
@@ -422,33 +442,47 @@ function BaseStationPage() {
             {label}
           </div>
         ))}
-        <img
-          className="base-cup-preview"
-          src={getCupPreviewImage()}
-          alt=""
-          draggable="false"
-        />
+        {showCupSizePopup && (
+          <div
+            className="base-cup-size-popup"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="base-cup-size-popup-title"
+          >
+            <p id="base-cup-size-popup-title" className="base-cup-size-popup__title">
+              Please choose cup size
+            </p>
+            <div className="base-cup-size-popup__actions">
+              <button type="button" onClick={() => handleCupSizeChoice('small')}>
+                Small
+              </button>
+              <button type="button" onClick={() => handleCupSizeChoice('large')}>
+                Large
+              </button>
+            </div>
+          </div>
+        )}
+        {showCupOnBase && (
+          <img
+            className={`base-cup-preview${cupShooting ? ' is-shooting' : ''}`}
+            src={getCupPreviewImage()}
+            alt=""
+            draggable="false"
+            onAnimationEnd={handleCupShootAnimationEnd}
+          />
+        )}
         <div className="base-size-toggle">
-          <button
-            type="button"
-            className={drinkSize === 'small' ? 'is-selected' : ''}
-            onClick={() => setDrinkSize('small')}
-          >
-            Small
-          </button>
-          <button
-            type="button"
-            className={drinkSize === 'large' ? 'is-selected' : ''}
-            onClick={() => setDrinkSize('large')}
-          >
-            Large
-          </button>
           <button type="button" onClick={resetBaseStation}>
             Reset
           </button>
         </div>
-        {cupHasMilk && (
-          <button type="button" className="base-ready-button" aria-label="Ready">
+        {showCupOnBase && cupHasMilk && !cupShooting && (
+          <button
+            type="button"
+            className="station-ready-button"
+            aria-label="Ready"
+            onClick={handleReadyClick}
+          >
             <img src={readyButton} alt="" draggable={false} />
           </button>
         )}

@@ -63,7 +63,7 @@ function HomePage() {
           className="home-freeplay-button"
           label="Free play"
           src={freePlayButton}
-          onClick={noop}
+          onClick={() => navigate('/order-station')}
         />
         <HomeButton
           className="home-create-multiplayer-button"

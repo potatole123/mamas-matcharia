@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import stationTable from '../assets/station-shared/station-table.png'
 import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
+import readyButton from '../assets/ready_button.png'
+import { useDrinkProgress } from '../DrinkProgressContext'
+import { getCupPreviewSrc } from '../drinkCup'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
 import creamMatcha from '../assets/topping/matcha_cream.png'
 import creamVanilla from '../assets/topping/vanilla_cream.png'
 import creamUbe from '../assets/topping/ube_cream.png'
 import creamYuzu from '../assets/topping/yuzu_cream.png'
 import powderJar from '../assets/topping/powder.png'
-import smallBaseDrink from '../assets/topping/base_drink/small_base.png'
-import largeBaseDrink from '../assets/topping/base_drink/large_base.png'
 import smallPowderBlackSesame from '../assets/topping/drinks_with_powder/small_black_sesame.png'
 import smallPowderHojicha from '../assets/topping/drinks_with_powder/small_hojicha.png'
 import smallPowderKinako from '../assets/topping/drinks_with_powder/small_kinako.png'
@@ -32,11 +33,6 @@ type PowderOption = 'black-sesame' | 'hojicha' | 'kinako' | 'matcha'
 type CreamOption = 'matcha' | 'vanilla' | 'ube' | 'yuzu'
 type DrinkSize = 'small' | 'large'
 type ComboPowderFolder = 'black_sesame' | 'hojicha' | 'kinako' | 'matcha_powder'
-
-const BASE_DRINK_IMAGES: Record<DrinkSize, string> = {
-  small: smallBaseDrink,
-  large: largeBaseDrink,
-}
 
 const POWDER_DRINK_IMAGES: Record<DrinkSize, Record<PowderOption, string>> = {
   small: {
@@ -80,11 +76,15 @@ const COMBO_DRINK_IMAGE_BY_PATH = import.meta.glob('../assets/topping/drinks_wit
   import: 'default',
 }) as Record<string, string>
 
+const CUP_SHOOT_MS = 900
+
 function ToppingStationPage() {
   const { ticketStore, showOrderTicketText, revealedOrderLineCount, swapMainWithHistory } =
     useOrderTicketsContext()
-  const [drinkSize, setDrinkSize] = useState<DrinkSize>('small')
+  const { toppingCup, clearToppingCup } = useDrinkProgress()
   const [selectedCream, setSelectedCream] = useState<CreamOption | null>(null)
+  const [cupShooting, setCupShooting] = useState(false)
+  const cupSendFinishedRef = useRef(false)
   const [animatingCream, setAnimatingCream] = useState<CreamOption | null>(null)
   const [selectedPowder, setSelectedPowder] = useState<PowderOption | null>(null)
   const [animatingPowder, setAnimatingPowder] = useState<PowderOption | null>(null)
@@ -94,6 +94,29 @@ function ToppingStationPage() {
   const POWDER_ANIMATION_MS = 1800
   const POWDER_PREVIEW_UPDATE_MS = 1450
   const isAnimating = Boolean(animatingCream || animatingPowder)
+  const showReadyButton = Boolean(toppingCup) && !cupShooting
+
+  function finishSendCupFromTopping() {
+    if (cupSendFinishedRef.current) return
+    cupSendFinishedRef.current = true
+    clearToppingCup()
+    setCupShooting(false)
+    resetToppings()
+  }
+
+  function handleReadyClick() {
+    if (!toppingCup || cupShooting) return
+    cupSendFinishedRef.current = false
+    setCupShooting(true)
+    trackTimeout(() => {
+      finishSendCupFromTopping()
+    }, CUP_SHOOT_MS)
+  }
+
+  function handleCupShootAnimationEnd() {
+    if (!cupShooting) return
+    finishSendCupFromTopping()
+  }
 
   function trackTimeout(callback: () => void, delayMs: number) {
     const timeoutId = window.setTimeout(callback, delayMs)
@@ -120,7 +143,7 @@ function ToppingStationPage() {
   }
 
   function handleCreamClick(cream: CreamOption) {
-    if (isAnimating || selectedCream || selectedPowder) return
+    if (!toppingCup || isAnimating || selectedCream || selectedPowder) return
     setAnimatingCream(cream)
     trackTimeout(() => {
       setSelectedCream(cream)
@@ -131,7 +154,7 @@ function ToppingStationPage() {
   }
 
   function handlePowderClick(powder: PowderOption) {
-    if (isAnimating || selectedPowder) return
+    if (!toppingCup || isAnimating || selectedPowder) return
     setAnimatingPowder(powder)
     trackTimeout(() => {
       setSelectedPowder(powder)
@@ -142,6 +165,10 @@ function ToppingStationPage() {
   }
 
   function getDrinkPreviewImage() {
+    if (!toppingCup) return ''
+
+    const drinkSize = toppingCup.size
+
     if (selectedCream && selectedPowder) {
       const comboPowderFolder = COMBO_POWDER_FOLDER_BY_OPTION[selectedPowder]
       const comboPath = `../assets/topping/drinks_with_cream_and_${comboPowderFolder}/${drinkSize}_${selectedCream}_cream_${comboPowderFolder}.png`
@@ -156,8 +183,10 @@ function ToppingStationPage() {
       return POWDER_DRINK_IMAGES[drinkSize][selectedPowder]
     }
 
-    return BASE_DRINK_IMAGES[drinkSize]
+    return getCupPreviewSrc(toppingCup)
   }
+
+  const toppingInteractCursor = toppingCup && !isAnimating && !cupShooting ? 'pointer' : 'default'
 
   return (
     <main className="station-page" aria-label="Topping station page">
@@ -181,7 +210,7 @@ function ToppingStationPage() {
           alt=""
           draggable="false"
           onClick={() => handleCreamClick('matcha')}
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+          style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
         <img
           className={`topping-cream topping-cream-vanilla ${
@@ -191,7 +220,7 @@ function ToppingStationPage() {
           alt=""
           draggable="false"
           onClick={() => handleCreamClick('vanilla')}
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+          style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
         <img
           className={`topping-cream topping-cream-ube ${
@@ -201,7 +230,7 @@ function ToppingStationPage() {
           alt=""
           draggable="false"
           onClick={() => handleCreamClick('ube')}
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+          style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
         <img
           className={`topping-cream topping-cream-yuzu ${
@@ -211,7 +240,7 @@ function ToppingStationPage() {
           alt=""
           draggable="false"
           onClick={() => handleCreamClick('yuzu')}
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+          style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
 
         <img
@@ -222,7 +251,7 @@ function ToppingStationPage() {
           alt=""
           draggable="false"
           onClick={() => handlePowderClick('black-sesame')}
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+          style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
         <img
           className={`topping-powder topping-powder-hojicha ${
@@ -232,7 +261,7 @@ function ToppingStationPage() {
           alt=""
           draggable="false"
           onClick={() => handlePowderClick('hojicha')}
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+          style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
         <img
           className={`topping-powder topping-powder-kinako ${
@@ -242,7 +271,7 @@ function ToppingStationPage() {
           alt=""
           draggable="false"
           onClick={() => handlePowderClick('kinako')}
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+          style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
         <img
           className={`topping-powder topping-powder-matcha ${
@@ -252,34 +281,33 @@ function ToppingStationPage() {
           alt=""
           draggable="false"
           onClick={() => handlePowderClick('matcha')}
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+          style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
         <div className="topping-label topping-label-black-sesame">Black Sesame</div>
         <div className="topping-label topping-label-hojicha">Hojicha</div>
         <div className="topping-label topping-label-kinako">Kinako</div>
         <div className="topping-label topping-label-matcha-powder">Matcha Powder</div>
-        <img
-          className="topping-base-drink"
-          src={getDrinkPreviewImage()}
-          alt=""
-          draggable="false"
-        />
+        {toppingCup && (
+          <img
+            className={`topping-base-drink topping-base-drink--${toppingCup.size}${cupShooting ? ' is-shooting' : ''}`}
+            src={getDrinkPreviewImage()}
+            alt=""
+            draggable="false"
+            onAnimationEnd={handleCupShootAnimationEnd}
+          />
+        )}
+        {showReadyButton && (
+          <button
+            type="button"
+            className="station-ready-button"
+            aria-label="Ready"
+            onClick={handleReadyClick}
+          >
+            <img src={readyButton} alt="" draggable={false} />
+          </button>
+        )}
         <div className="topping-size-toggle">
-          <button
-            type="button"
-            className={drinkSize === 'small' ? 'is-selected' : ''}
-            onClick={() => setDrinkSize('small')}
-          >
-            Small
-          </button>
-          <button
-            type="button"
-            className={drinkSize === 'large' ? 'is-selected' : ''}
-            onClick={() => setDrinkSize('large')}
-          >
-            Large
-          </button>
-          <button type="button" onClick={resetToppings}>
+          <button type="button" onClick={resetToppings} disabled={!toppingCup}>
             Reset
           </button>
         </div>

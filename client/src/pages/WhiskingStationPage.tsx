@@ -1,7 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import stationTable from '../assets/station-shared/station-table.png'
 import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
+import readyButton from '../assets/ready_button.png'
+import { useDrinkProgress } from '../DrinkProgressContext'
+import { getCupPreviewSrc } from '../drinkCup'
+import type { BowlMatchaLevel } from '../stationProgress'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
 import emptyBowl from '../assets/whisking-station/empty-bowl.png'
 import bowlWithMatcha1 from '../assets/whisking-station/bowl-with-matcha-1.png'
@@ -19,168 +23,231 @@ import kettle from '../assets/whisking-station/kettle.png'
 import kettleWater from '../assets/whisking-station/kettle-water.png'
 import matchaScaleZero from '../assets/whisking-station/matcha-scale-zero.png'
 import matchaTin from '../assets/whisking-station/matcha-tin.png'
-import cup from '../assets/whisking-station/cup.png'
-import cupWithMatcha from '../assets/whisking-station/cup-with-matcha.png'
 import './StationPage.css'
+
+type SpoonState = 'empty-original' | 'matcha-over-bowl' | 'empty-return'
+type KettleState = 'original' | 'pouring-over-bowl' | 'returning'
+type WhiskState = 'original' | 'whisking' | 'returning'
+type BowlAnimPhase = 'idle' | 'over-cup' | 'returning'
+
+const CUP_SHOOT_MS = 900
+const BOWL_TRAVEL_MS = 650
+const BOWL_POUR_HOLD_MS = 500
+const BOWL_RETURN_MS = 650
 
 function WhiskingStationPage() {
   const { ticketStore, showOrderTicketText, revealedOrderLineCount, swapMainWithHistory } =
     useOrderTicketsContext()
-  
-  const [spoon1State, setSpoon1State] = useState<'empty-original' | 'matcha-over-bowl' | 'empty-return'>('empty-original')
-  const [spoon2State, setSpoon2State] = useState<'empty-original' | 'matcha-over-bowl' | 'empty-return'>('empty-original')
-  const [spoon3State, setSpoon3State] = useState<'empty-original' | 'matcha-over-bowl' | 'empty-return'>('empty-original')
-  const [bowlMatchaLevel, setBowlMatchaLevel] = useState<'empty' | '1' | '2' | '3' | '4' | '5' | '6'>('empty')
-  const [kettleState, setKettleState] = useState<'original' | 'pouring-over-bowl' | 'returning'>('original')
-  const [bowlHasWater, setBowlHasWater] = useState(false)
-  const [whiskState, setWhiskState] = useState<'original' | 'whisking' | 'returning'>('original')
-  const [isWhisked, setIsWhisked] = useState(false)
-  const [totalWeight, setTotalWeight] = useState(0)
-  const [cupHasMatcha, setCupHasMatcha] = useState(false)
+  const {
+    whiskingStation,
+    updateWhiskingStation,
+    whiskingCup,
+    updateWhiskingCup,
+    sendCupToTopping,
+    clearWhiskingCup,
+    resetAllStationProgress,
+  } = useDrinkProgress()
+  const { bowlMatchaLevel, bowlHasWater, isWhisked, totalWeight } = whiskingStation
 
-  const incrementMatchaLevel = () => {
-    setBowlMatchaLevel(prevLevel => {
-      if (prevLevel === 'empty') return '1'
-      if (prevLevel === '1') return '2'
-      if (prevLevel === '2') return '3'
-      if (prevLevel === '3') return '4'
-      if (prevLevel === '4') return '5'
-      if (prevLevel === '5') return '6'
-      return prevLevel
+  const [spoon1State, setSpoon1State] = useState<SpoonState>('empty-original')
+  const [spoon2State, setSpoon2State] = useState<SpoonState>('empty-original')
+  const [spoon3State, setSpoon3State] = useState<SpoonState>('empty-original')
+  const [kettleState, setKettleState] = useState<KettleState>('original')
+  const [whiskState, setWhiskState] = useState<WhiskState>('original')
+  const [bowlAnimPhase, setBowlAnimPhase] = useState<BowlAnimPhase>('idle')
+  const [cupShooting, setCupShooting] = useState(false)
+  const cupSendFinishedRef = useRef(false)
+  const pendingTimeoutsRef = useRef<number[]>([])
+
+  const isBowlAnimating = bowlAnimPhase !== 'idle'
+  const canPourIntoCup = Boolean(
+    whiskingCup?.hasMilk && !whiskingCup.hasBaseDrink && isWhisked && !isBowlAnimating,
+  )
+  const showReadyButton = Boolean(whiskingCup?.hasBaseDrink) && !cupShooting && !isBowlAnimating
+
+  function trackTimeout(callback: () => void, delayMs: number) {
+    const timeoutId = window.setTimeout(callback, delayMs)
+    pendingTimeoutsRef.current.push(timeoutId)
+  }
+
+  function clearPendingTimeouts() {
+    pendingTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId))
+    pendingTimeoutsRef.current = []
+  }
+
+  useEffect(() => () => clearPendingTimeouts(), [])
+
+  function incrementMatchaLevel() {
+    updateWhiskingStation((prev) => {
+      const level = prev.bowlMatchaLevel
+      const nextLevel: BowlMatchaLevel =
+        level === 'empty'
+          ? '1'
+          : level === '1'
+            ? '2'
+            : level === '2'
+              ? '3'
+              : level === '3'
+                ? '4'
+                : level === '4'
+                  ? '5'
+                  : level === '5'
+                    ? '6'
+                    : level
+      return {
+        bowlMatchaLevel: nextLevel,
+        totalWeight: prev.totalWeight + 1,
+        isWhisked: false,
+      }
     })
-    setTotalWeight(prev => prev + 1)
-    // If bowl was whisked, adding more matcha makes it unwhisked again
-    if (isWhisked) {
-      setIsWhisked(false)
-    }
   }
 
-  const handleMatchaTin1Click = () => {
-    if (spoon1State !== 'empty-original' || bowlMatchaLevel === '4') return
-    
-    // Move spoon with matcha over bowl
-    setSpoon1State('matcha-over-bowl')
-    
-    // After 600ms, deposit matcha into bowl and empty the spoon
-    setTimeout(() => {
+  function runSpoonCycle(setSpoonState: (state: SpoonState) => void) {
+    setSpoonState('matcha-over-bowl')
+    trackTimeout(() => {
       incrementMatchaLevel()
-      setSpoon1State('empty-return')
+      setSpoonState('empty-return')
     }, 600)
-    
-    // After another 600ms, return spoon to original position
-    setTimeout(() => {
-      setSpoon1State('empty-original')
+    trackTimeout(() => {
+      setSpoonState('empty-original')
     }, 1200)
   }
 
-  const handleMatchaTin2Click = () => {
-    if (spoon2State !== 'empty-original' || bowlMatchaLevel === '4') return
-    
-    // Move spoon with matcha over bowl
-    setSpoon2State('matcha-over-bowl')
-    
-    // After 600ms, deposit matcha into bowl and empty the spoon
-    setTimeout(() => {
-      incrementMatchaLevel()
-      setSpoon2State('empty-return')
-    }, 600)
-    
-    // After another 600ms, return spoon to original position
-    setTimeout(() => {
-      setSpoon2State('empty-original')
-    }, 1200)
+  function handleMatchaTin1Click() {
+    if (spoon1State !== 'empty-original' || bowlMatchaLevel === '4' || isBowlAnimating) return
+    runSpoonCycle(setSpoon1State)
   }
 
-  const handleMatchaTin3Click = () => {
-    if (spoon3State !== 'empty-original' || bowlMatchaLevel === '4') return
-    
-    // Move spoon with matcha over bowl
-    setSpoon3State('matcha-over-bowl')
-    
-    // After 600ms, deposit matcha into bowl and empty the spoon
-    setTimeout(() => {
-      incrementMatchaLevel()
-      setSpoon3State('empty-return')
-    }, 600)
-    
-    // After another 600ms, return spoon to original position
-    setTimeout(() => {
-      setSpoon3State('empty-original')
-    }, 1200)
+  function handleMatchaTin2Click() {
+    if (spoon2State !== 'empty-original' || bowlMatchaLevel === '4' || isBowlAnimating) return
+    runSpoonCycle(setSpoon2State)
   }
 
-  const handleKettleClick = () => {
-    if (kettleState !== 'original' || bowlMatchaLevel === 'empty') return
-    
-    // Move kettle over bowl
+  function handleMatchaTin3Click() {
+    if (spoon3State !== 'empty-original' || bowlMatchaLevel === '4' || isBowlAnimating) return
+    runSpoonCycle(setSpoon3State)
+  }
+
+  function handleKettleClick() {
+    if (kettleState !== 'original' || bowlMatchaLevel === 'empty' || isBowlAnimating) return
     setKettleState('pouring-over-bowl')
-    
-    // After 600ms, pour water into bowl
-    setTimeout(() => {
-      setBowlHasWater(true)
-      setTotalWeight(prev => prev + 60)
+    trackTimeout(() => {
+      updateWhiskingStation((prev) => ({
+        bowlHasWater: true,
+        totalWeight: prev.totalWeight + 60,
+        isWhisked: false,
+      }))
       setKettleState('returning')
     }, 600)
-    
-    // After another 600ms, return kettle to original position
-    setTimeout(() => {
+    trackTimeout(() => {
       setKettleState('original')
     }, 1200)
   }
 
-  const handleWhiskClick = () => {
-    if (whiskState !== 'original' || !bowlHasWater) return
-    
-    // Move whisk over bowl and start whisking animation
+  function handleWhiskClick() {
+    if (whiskState !== 'original' || !bowlHasWater || isBowlAnimating) return
     setWhiskState('whisking')
-    
-    // After 2000ms (whisking animation duration), show whisked matcha and return whisk
-    setTimeout(() => {
-      setIsWhisked(true)
+    trackTimeout(() => {
+      updateWhiskingStation({ isWhisked: true })
       setWhiskState('returning')
     }, 2000)
-    
-    // After another 600ms, return whisk to original position
-    setTimeout(() => {
+    trackTimeout(() => {
       setWhiskState('original')
     }, 2600)
   }
 
-  const handleBowlClick = () => {
-    // Only pour if matcha is whisked
-    if (!isWhisked) return
-    
-    // Pour whisked matcha into cup
-    setCupHasMatcha(true)
-    
-    // Reset bowl to empty state
-    setBowlMatchaLevel('empty')
-    setBowlHasWater(false)
-    setIsWhisked(false)
-    setTotalWeight(0)
+  function handleBowlClick() {
+    if (!canPourIntoCup) return
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setBowlAnimPhase('over-cup')
+      })
+    })
+    trackTimeout(() => {
+      updateWhiskingCup({ hasBaseDrink: true })
+      updateWhiskingStation({
+        bowlMatchaLevel: 'empty',
+        bowlHasWater: false,
+        isWhisked: false,
+        totalWeight: 0,
+      })
+      setBowlAnimPhase('returning')
+    }, BOWL_TRAVEL_MS + BOWL_POUR_HOLD_MS)
+    trackTimeout(() => {
+      setBowlAnimPhase('idle')
+    }, BOWL_TRAVEL_MS + BOWL_POUR_HOLD_MS + BOWL_RETURN_MS)
   }
 
-  const getBowlImage = () => {
+  function finishSendCupToTopping() {
+    if (cupSendFinishedRef.current || !whiskingCup) return
+    cupSendFinishedRef.current = true
+    sendCupToTopping(whiskingCup)
+    clearWhiskingCup()
+    setCupShooting(false)
+  }
+
+  function handleReadyClick() {
+    if (!whiskingCup?.hasBaseDrink || isBowlAnimating || cupShooting) return
+    cupSendFinishedRef.current = false
+    setCupShooting(true)
+    trackTimeout(() => {
+      finishSendCupToTopping()
+    }, CUP_SHOOT_MS)
+  }
+
+  function handleCupShootAnimationEnd() {
+    if (!cupShooting) return
+    finishSendCupToTopping()
+  }
+
+  function handleReset() {
+    clearPendingTimeouts()
+    setSpoon1State('empty-original')
+    setSpoon2State('empty-original')
+    setSpoon3State('empty-original')
+    setKettleState('original')
+    setWhiskState('original')
+    setBowlAnimPhase('idle')
+    setCupShooting(false)
+    resetAllStationProgress()
+  }
+
+  function getBowlImage() {
     if (isWhisked) {
       return whiskedMatcha
     }
-    
     if (bowlHasWater) {
       return matchaPowderWithWater
     }
-    
     switch (bowlMatchaLevel) {
-      case 'empty': return emptyBowl
-      case '1': return bowlWithMatcha1
-      case '2': return bowlWithMatcha2
-      case '3': return bowlWithMatcha3
-      case '4': return bowlWithMatcha4
-      case '5': return bowlWithMatcha5
-      case '6': return bowlWithMatcha6
-      default: return emptyBowl
+      case 'empty':
+        return emptyBowl
+      case '1':
+        return bowlWithMatcha1
+      case '2':
+        return bowlWithMatcha2
+      case '3':
+        return bowlWithMatcha3
+      case '4':
+        return bowlWithMatcha4
+      case '5':
+        return bowlWithMatcha5
+      case '6':
+        return bowlWithMatcha6
+      default:
+        return emptyBowl
     }
   }
 
+  function getBowlClassName() {
+    if (bowlAnimPhase === 'over-cup') {
+      return 'whisking-empty-bowl whisking-empty-bowl-over-cup'
+    }
+    if (bowlAnimPhase === 'returning') {
+      return 'whisking-empty-bowl whisking-empty-bowl-returning'
+    }
+    return 'whisking-empty-bowl'
+  }
 
   return (
     <main className="station-page" aria-label="Whisking station page">
@@ -197,97 +264,114 @@ function WhiskingStationPage() {
         <div className="regular-label">Regular</div>
         <div className="premium-label">Premium</div>
         <div className="ultra-label">Ultra</div>
-        <img 
-          className="whisking-empty-bowl" 
-          src={getBowlImage()} 
-          alt="" 
+        <img
+          className={getBowlClassName()}
+          src={getBowlImage()}
+          alt=""
           draggable="false"
           onClick={handleBowlClick}
-          style={{ cursor: isWhisked ? 'pointer' : 'default', pointerEvents: 'auto' }}
+          style={{ cursor: canPourIntoCup ? 'pointer' : 'default', pointerEvents: 'auto' }}
         />
-        <img 
+        <img
           className={
-            whiskState === 'whisking' 
-              ? "whisking-whisk-over-bowl whisking-animation" 
+            whiskState === 'whisking'
+              ? 'whisking-whisk-over-bowl whisking-animation'
               : whiskState === 'returning'
-              ? "whisking-whisk-over-bowl"
-              : "whisking-whisk"
+                ? 'whisking-whisk-over-bowl'
+                : 'whisking-whisk'
           }
-          src={whisk} 
-          alt="" 
+          src={whisk}
+          alt=""
           draggable="false"
           onClick={handleWhiskClick}
           style={{ cursor: 'pointer', pointerEvents: 'auto' }}
         />
-        <img 
+        <img
           className={
-            spoon1State === 'matcha-over-bowl' 
-              ? "whisking-spoon-1-over-bowl" 
-              : spoon1State === 'empty-return'
-              ? "whisking-spoon-1-over-bowl"
-              : "whisking-empty-spoon-1"
-          } 
-          src={spoon1State === 'matcha-over-bowl' ? spoonWithMatcha : emptySpoon} 
-          alt="" 
-          draggable="false" 
+            spoon1State === 'matcha-over-bowl' || spoon1State === 'empty-return'
+              ? 'whisking-spoon-1-over-bowl'
+              : 'whisking-empty-spoon-1'
+          }
+          src={spoon1State === 'matcha-over-bowl' ? spoonWithMatcha : emptySpoon}
+          alt=""
+          draggable="false"
         />
-        <img 
+        <img
           className={
-            spoon2State === 'matcha-over-bowl' 
-              ? "whisking-spoon-2-over-bowl" 
-              : spoon2State === 'empty-return'
-              ? "whisking-spoon-2-over-bowl"
-              : "whisking-empty-spoon-2"
-          } 
-          src={spoon2State === 'matcha-over-bowl' ? spoonWithMatcha : emptySpoon} 
-          alt="" 
-          draggable="false" 
+            spoon2State === 'matcha-over-bowl' || spoon2State === 'empty-return'
+              ? 'whisking-spoon-2-over-bowl'
+              : 'whisking-empty-spoon-2'
+          }
+          src={spoon2State === 'matcha-over-bowl' ? spoonWithMatcha : emptySpoon}
+          alt=""
+          draggable="false"
         />
-        <img 
+        <img
           className={
-            spoon3State === 'matcha-over-bowl' 
-              ? "whisking-spoon-3-over-bowl" 
-              : spoon3State === 'empty-return'
-              ? "whisking-spoon-3-over-bowl"
-              : "whisking-empty-spoon-3"
-          } 
-          src={spoon3State === 'matcha-over-bowl' ? spoonWithMatcha : emptySpoon} 
-          alt="" 
-          draggable="false" 
+            spoon3State === 'matcha-over-bowl' || spoon3State === 'empty-return'
+              ? 'whisking-spoon-3-over-bowl'
+              : 'whisking-empty-spoon-3'
+          }
+          src={spoon3State === 'matcha-over-bowl' ? spoonWithMatcha : emptySpoon}
+          alt=""
+          draggable="false"
         />
-        <img 
-          className={kettleState === 'original' ? "whisking-kettle" : "whisking-kettle-over-bowl"}
-          src={kettleState === 'pouring-over-bowl' ? kettleWater : kettle} 
-          alt="" 
+        <img
+          className={kettleState === 'original' ? 'whisking-kettle' : 'whisking-kettle-over-bowl'}
+          src={kettleState === 'pouring-over-bowl' ? kettleWater : kettle}
+          alt=""
           draggable="false"
           onClick={handleKettleClick}
           style={{ cursor: 'pointer', pointerEvents: 'auto' }}
         />
-        <img 
-          className="whisking-matcha-tin-1" 
-          src={matchaTin} 
-          alt="" 
+        <img
+          className="whisking-matcha-tin-1"
+          src={matchaTin}
+          alt=""
           draggable="false"
           onClick={handleMatchaTin1Click}
           style={{ cursor: 'pointer', pointerEvents: 'auto' }}
         />
-        <img 
-          className="whisking-matcha-tin-2" 
-          src={matchaTin} 
-          alt="" 
+        <img
+          className="whisking-matcha-tin-2"
+          src={matchaTin}
+          alt=""
           draggable="false"
           onClick={handleMatchaTin2Click}
           style={{ cursor: 'pointer', pointerEvents: 'auto' }}
         />
-        <img 
-          className="whisking-matcha-tin-3" 
-          src={matchaTin} 
-          alt="" 
+        <img
+          className="whisking-matcha-tin-3"
+          src={matchaTin}
+          alt=""
           draggable="false"
           onClick={handleMatchaTin3Click}
           style={{ cursor: 'pointer', pointerEvents: 'auto' }}
         />
-        <img className="cup" src={cupHasMatcha ? cupWithMatcha : cup} alt="" draggable="false" />
+        {whiskingCup && (
+          <img
+            className={`whisking-cup-preview whisking-cup-preview--${whiskingCup.size}${cupShooting ? ' is-shooting' : ''}`}
+            src={getCupPreviewSrc(whiskingCup)}
+            alt=""
+            draggable="false"
+            onAnimationEnd={handleCupShootAnimationEnd}
+          />
+        )}
+        {showReadyButton && (
+          <button
+            type="button"
+            className="station-ready-button"
+            aria-label="Ready"
+            onClick={handleReadyClick}
+          >
+            <img src={readyButton} alt="" draggable={false} />
+          </button>
+        )}
+        <div className="topping-size-toggle">
+          <button type="button" onClick={handleReset}>
+            Reset
+          </button>
+        </div>
         <StationDock currentStation="whisking" />
       </section>
     </main>
