@@ -32,10 +32,14 @@
   position: absolute;
   left: 35%;
   bottom: 32%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) rotate(0deg);
   width: 16%;
   height: auto;
   z-index: 2;
+  transition:
+    left 0.65s ease-in-out,
+    bottom 0.65s ease-in-out,
+    transform 0.65s ease-in-out;
 }
 
 .matcha-scale {
@@ -570,6 +574,71 @@
   z-index: 3;
 }
 
+.topping-base-drink.is-shooting {
+  animation: topping-cup-shoot-right 0.9s ease-in forwards;
+}
+
+@keyframes topping-cup-shoot-right {
+  from {
+    left: 36%;
+    transform: translateX(-50%);
+  }
+  to {
+    left: 106%;
+    transform: translateX(-50%);
+  }
+}
+
+.whisking-cup-preview {
+  position: absolute;
+  left: 60%;
+  bottom: 17%;
+  transform: translateX(-50%);
+  width: 16%;
+  height: auto;
+  z-index: 4;
+}
+
+.whisking-cup-preview.is-shooting {
+  animation: whisking-cup-shoot-right 0.9s ease-in forwards;
+}
+
+@keyframes whisking-cup-shoot-right {
+  from {
+    left: 60%;
+    transform: translateX(-50%);
+  }
+  to {
+    left: 106%;
+    transform: translateX(-50%);
+  }
+}
+
+.whisking-empty-bowl-over-cup {
+  left: 60%;
+  bottom: 24%;
+  transform: translateX(-50%) rotate(-18deg);
+  z-index: 6;
+  animation: whisking-bowl-pour-tilt 0.45s ease-in-out 0.65s 2;
+}
+
+@keyframes whisking-bowl-pour-tilt {
+  0%,
+  100% {
+    transform: translateX(-50%) rotate(-18deg);
+  }
+  50% {
+    transform: translateX(-50%) rotate(-28deg) translateY(2%);
+  }
+}
+
+.whisking-empty-bowl-returning {
+  left: 35%;
+  bottom: 32%;
+  transform: translateX(-50%) rotate(0deg);
+  z-index: 12;
+}
+
 .topping-size-toggle {
   position: absolute;
   left: 50%;
@@ -603,6 +672,104 @@
   width: 16%;
   height: auto;
   z-index: 3;
+}
+
+.base-cup-preview.is-shooting {
+  animation: base-cup-shoot-right 0.9s ease-in forwards;
+}
+
+@keyframes base-cup-shoot-right {
+  from {
+    left: 48%;
+    transform: translateX(-50%);
+  }
+  to {
+    left: 106%;
+    transform: translateX(-50%);
+  }
+}
+
+.base-cup-size-popup {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translateX(-50%);
+  z-index: 12;
+  min-width: min(32rem, 72vw);
+  padding: 1.75rem 2.25rem;
+  border-radius: 1rem;
+  background: rgb(255 248 232 / 98%);
+  border: 3px solid #9aca72;
+  box-shadow: 0 0.5rem 1.5rem rgb(79 37 20 / 28%);
+  text-align: center;
+}
+
+.base-cup-size-popup__title {
+  margin: 0 0 1.25rem;
+  font-size: clamp(1.25rem, 2.8vw, 1.85rem);
+  font-weight: 800;
+  line-height: 1.25;
+  color: #4f2514;
+}
+
+.base-cup-size-popup__actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.base-cup-size-popup__actions button {
+  border: 0;
+  border-radius: 0.55rem;
+  padding: 0.65rem 1.75rem;
+  font-size: clamp(1rem, 1.8vw, 1.25rem);
+  font-weight: 700;
+  background: #9aca72;
+  color: #4f2514;
+  cursor: pointer;
+}
+
+.base-cup-size-popup__actions button:hover {
+  filter: brightness(1.05);
+}
+
+.base-cup-size-popup__actions button:focus-visible {
+  outline: 3px solid #4f2514;
+  outline-offset: 3px;
+}
+
+.station-ready-button {
+  position: absolute;
+  right: 5%;
+  bottom: 8%;
+  z-index: 8;
+  width: 9%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.station-ready-button img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  pointer-events: none;
+}
+
+.station-ready-button:hover {
+  filter: brightness(1.06);
+}
+
+.station-ready-button:active {
+  filter: brightness(0.96);
+}
+
+.station-ready-button:focus-visible {
+  outline: clamp(2px, 0.22vw, 4px) solid #f8f3cf;
+  outline-offset: clamp(2px, 0.3vw, 5px);
+  border-radius: 0.35rem;
 }
 
 .base-ready-button {
