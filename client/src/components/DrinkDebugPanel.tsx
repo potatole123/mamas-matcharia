@@ -36,13 +36,17 @@ function DrinkDebugPanel() {
       status: d.status,
       recipe: d.recipe,
     })),
-    whiskingBench: drinkAtWhisking
-      ? null
-      : {
-          bowl: whiskingStation,
-          matcha: benchMatcha,
-          note: 'No drink on whisking — bowl/matcha here until a cup arrives from base',
-        },
+    whiskingBench: {
+      bowl: whiskingStation,
+      matcha: benchMatcha,
+      note: 'Shared bowl — prep next drink while a cup waits on the station',
+    },
+    cupAtWhisking: drinkAtWhisking
+      ? {
+          id: drinkAtWhisking.id,
+          waitingForTopping: Boolean(drinkAtWhisking.cupVisual.hasBaseDrink),
+        }
+      : null,
     basePitcher: {
       hasMilk: baseStation.pitcherHasMilk,
       milk: baseStation.pitcherMilk,

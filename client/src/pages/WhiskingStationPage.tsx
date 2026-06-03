@@ -4,7 +4,7 @@ import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
 import readyButton from '../assets/ready_button.png'
 import { useDrinkProgress } from '../DrinkProgressContext'
-import { getCupPreviewSrc } from '../drinkCup'
+import { getCupPreviewSrc, type BaseCupSnapshot } from '../drinkCup'
 import { MATCHA_TIN_TO_GRADE, matchaGradeToTin } from '../utils/drinkMappings'
 import type { BowlMatchaLevel, MatchaTin } from '../stationProgress'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
@@ -31,7 +31,6 @@ type KettleState = 'original' | 'pouring-over-bowl' | 'returning'
 type WhiskState = 'original' | 'whisking' | 'returning'
 type BowlAnimPhase = 'idle' | 'over-cup' | 'returning'
 
-const CUP_SHOOT_MS = 900
 const BOWL_TRAVEL_MS = 650
 const BOWL_POUR_HOLD_MS = 500
 const BOWL_RETURN_MS = 650
@@ -45,6 +44,7 @@ function WhiskingStationPage() {
     benchMatcha,
     updateDrink,
     setBenchMatcha,
+    clearBenchMatcha,
     whiskingStation,
     updateWhiskingStation,
     whiskingCup,
@@ -54,12 +54,19 @@ function WhiskingStationPage() {
   const { bowlMatchaLevel, bowlHasWater, isWhisked, totalWeight, selectedMatchaTin } =
     whiskingStation
 
+  const cupWaitingForTopping = Boolean(whiskingCup?.hasBaseDrink)
+
   function getLockedMatchaTin(): MatchaTin | null {
     if (selectedMatchaTin) {
       return selectedMatchaTin
     }
-    const grade = drinkAtWhisking?.recipe.matcha ?? benchMatcha
-    return grade ? matchaGradeToTin(grade) : null
+    if (benchMatcha) {
+      return matchaGradeToTin(benchMatcha)
+    }
+    if (!cupWaitingForTopping && drinkAtWhisking?.recipe.matcha) {
+      return matchaGradeToTin(drinkAtWhisking.recipe.matcha)
+    }
+    return null
   }
 
   function canUseMatchaTin(tin: MatchaTin) {
@@ -74,7 +81,7 @@ function WhiskingStationPage() {
   const [whiskState, setWhiskState] = useState<WhiskState>('original')
   const [bowlAnimPhase, setBowlAnimPhase] = useState<BowlAnimPhase>('idle')
   const [cupShooting, setCupShooting] = useState(false)
-  const cupSendFinishedRef = useRef(false)
+  const [departingCup, setDepartingCup] = useState<BaseCupSnapshot | null>(null)
   const pendingTimeoutsRef = useRef<number[]>([])
 
   const isBowlAnimating = bowlAnimPhase !== 'idle'
@@ -138,12 +145,7 @@ function WhiskingStationPage() {
   }
 
   function setMatchaGradeFromTin(tin: MatchaTin) {
-    const matcha = MATCHA_TIN_TO_GRADE[tin]
-    if (drinkAtWhisking) {
-      updateDrink(drinkAtWhisking.id, { recipe: { matcha } })
-    } else {
-      setBenchMatcha(matcha)
-    }
+    setBenchMatcha(MATCHA_TIN_TO_GRADE[tin])
   }
 
   function handleMatchaTinClick(
@@ -214,12 +216,17 @@ function WhiskingStationPage() {
     })
     trackTimeout(() => {
       updateWhiskingCup({ hasBaseDrink: true })
+      if (drinkAtWhisking && benchMatcha) {
+        updateDrink(drinkAtWhisking.id, { recipe: { matcha: benchMatcha } })
+      }
       updateWhiskingStation({
         bowlMatchaLevel: 'empty',
         bowlHasWater: false,
         isWhisked: false,
         totalWeight: 0,
+        selectedMatchaTin: null,
       })
+      clearBenchMatcha()
       setBowlAnimPhase('returning')
     }, BOWL_TRAVEL_MS + BOWL_POUR_HOLD_MS)
     trackTimeout(() => {
@@ -227,12 +234,7 @@ function WhiskingStationPage() {
     }, BOWL_TRAVEL_MS + BOWL_POUR_HOLD_MS + BOWL_RETURN_MS)
   }
 
-  function finishSendCupToTopping() {
-    if (cupSendFinishedRef.current || !whiskingCup) return
-    cupSendFinishedRef.current = true
-    sendCupToTopping(whiskingCup)
-    setCupShooting(false)
-  }
+  const cupOnStage = whiskingCup ?? departingCup
 
   function handleReadyClick() {
     if (
@@ -243,16 +245,15 @@ function WhiskingStationPage() {
       cupShooting
     )
       return
-    cupSendFinishedRef.current = false
+    setDepartingCup(whiskingCup)
+    sendCupToTopping(whiskingCup)
     setCupShooting(true)
-    trackTimeout(() => {
-      finishSendCupToTopping()
-    }, CUP_SHOOT_MS)
   }
 
   function handleCupShootAnimationEnd() {
     if (!cupShooting) return
-    finishSendCupToTopping()
+    setCupShooting(false)
+    setDepartingCup(null)
   }
 
   function getBowlImage() {
@@ -403,10 +404,10 @@ function WhiskingStationPage() {
             opacity: tinIsDisabled(3) ? 0.45 : 1,
           }}
         />
-        {whiskingCup && (
+        {cupOnStage && (
           <img
-            className={`whisking-cup-preview whisking-cup-preview--${whiskingCup.size}${cupShooting ? ' is-shooting' : ''}`}
-            src={getCupPreviewSrc(whiskingCup)}
+            className={`whisking-cup-preview whisking-cup-preview--${cupOnStage.size}${cupShooting ? ' is-shooting' : ''}`}
+            src={getCupPreviewSrc(cupOnStage)}
             alt=""
             draggable="false"
             onAnimationEnd={handleCupShootAnimationEnd}
