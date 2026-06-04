@@ -311,8 +311,11 @@ function WhiskingStationPage() {
       ? WHISKING_STATION_TUTORIAL_MESSAGES[activeTutorialStep]
       : null
   const shouldShowTutorialContinue = activeTutorialStep === 'welcome'
-  const isWelcomeTutorialStep = activeTutorialStep === 'welcome'
-  const isInteractionLocked = isWelcomeTutorialStep
+  const isStationDockLocked = Boolean(
+    activeTutorialStep &&
+      activeTutorialStep !== 'complete' &&
+      activeTutorialStep !== 'go-to-topping',
+  )
 
   function handleStageClick() {
     if (activeTutorialStep === 'welcome') {
@@ -442,7 +445,7 @@ function WhiskingStationPage() {
           showOrderTicketText={showOrderTicketText}
           revealedOrderLineCount={revealedOrderLineCount}
           onHistoryTicketClick={swapMainWithHistory}
-          disabled={isInteractionLocked}
+          disabled={isStationDockLocked}
         />
         <img className="matcha-scale" src={matchaScaleZero} alt="" draggable="false" />
         <div className="bowl-weight-display">{totalWeight}g</div>
@@ -594,7 +597,7 @@ function WhiskingStationPage() {
         )}
         <StationDock
           currentStation="whisking"
-          disabled={isInteractionLocked}
+          disabled={isStationDockLocked}
           highlightedStation={activeTutorialStep === 'go-to-topping' ? 'topping' : null}
           onStationNavigate={handleStationNavigate}
         />
