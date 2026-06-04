@@ -7,6 +7,7 @@ import { useGameDayContext } from '../GameDayContext'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
 import { aggregateOrderScores } from '../scoring/aggregateDayScore'
 import type { OrderScoreResult } from '../types/drinkSubmission'
+import { isFreePlayMode } from '../utils/gameMode'
 import './GameSummary.css'
 
 const TARGET_POINTS_PER_ORDER = 9
@@ -46,6 +47,12 @@ function GameSummary() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const hasSubmittedRef = useRef(false)
+
+  useEffect(() => {
+    if (isFreePlayMode(dayState?.day)) {
+      navigate('/home', { replace: true })
+    }
+  }, [dayState?.day, navigate])
 
   const submitResults = useCallback(async () => {
     if (scoreList.length === 0) {

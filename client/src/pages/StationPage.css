@@ -1661,6 +1661,24 @@
   pointer-events: none;
 }
 
+.station-freeplay-banner {
+  position: absolute;
+  top: 3.5%;
+  left: 50%;
+  z-index: 8;
+  margin: 0;
+  padding: 0.55rem 1rem;
+  transform: translateX(-50%);
+  border: 0.12rem solid #6f361e;
+  border-radius: 0.5rem;
+  background: rgb(255 248 215 / 94%);
+  color: #4f2514;
+  font-size: clamp(0.75rem, 1.2vw, 1rem);
+  font-weight: 700;
+  text-align: center;
+  pointer-events: none;
+}
+
 .station-tutorial-message {
   position: absolute;
   top: 3.5%;

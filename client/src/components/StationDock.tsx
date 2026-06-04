@@ -6,6 +6,7 @@ import { useDrinkProgress } from '../DrinkProgressContext'
 import { useGameDayContext } from '../GameDayContext'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
 import { useTutorialContext } from '../TutorialContext'
+import { isFreePlayMode } from '../utils/gameMode'
 import exitButton from '../assets/station-shared/exit-button.png'
 import orderButton from '../assets/station-shared/order-button.png'
 import baseButton from '../assets/station-shared/base-button.png'
@@ -52,7 +53,8 @@ function StationDock({
 }: StationDockProps) {
   const navigate = useNavigate()
   const { getIdToken } = useAuth()
-  const { resetDay } = useGameDayContext()
+  const { dayState, resetDay } = useGameDayContext()
+  const isFreePlay = isFreePlayMode(dayState?.day)
   const { resetTickets } = useOrderTicketsContext()
   const { resetAllStationProgress } = useDrinkProgress()
   const { resetTutorialProgress } = useTutorialContext()
@@ -67,15 +69,18 @@ function StationDock({
 
     setIsExiting(true)
     try {
-      const token = await getIdToken()
-      if (!token) {
-        throw new Error('Authentication token is unavailable')
+      if (!isFreePlay) {
+        const token = await getIdToken()
+        if (!token) {
+          throw new Error('Authentication token is unavailable')
+        }
+
+        await Fetch<null>('/api/session', {
+          method: 'DELETE',
+          token,
+        })
       }
 
-      await Fetch<null>('/api/session', {
-        method: 'DELETE',
-        token,
-      })
       resetDay()
       resetTickets()
       resetAllStationProgress()

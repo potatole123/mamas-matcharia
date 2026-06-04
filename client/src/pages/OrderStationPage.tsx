@@ -13,6 +13,7 @@ import { useOrderTicketsContext } from '../OrderTicketsContext'
 import { useTutorialContext, type OrderStationTutorialStep } from '../TutorialContext'
 import { ORDER_TICKET_FIELDS, type TicketData } from '../hooks/useOrderTickets'
 import type { ScheduledNpc } from '../types/game'
+import { isFreePlayMode, isTutorialGameplayMode } from '../utils/gameMode'
 import './StationPage.css'
 
 type BearPhase = 'idle' | 'spawn' | 'moving' | 'at-counter' | 'talking' | 'exiting'
@@ -101,16 +102,21 @@ function OrderStationPage() {
     timeoutsRef.current = []
   }, [])
 
+  const isFreePlay = isFreePlayMode(dayState?.day)
+
   useEffect(() => {
+    if (isFreePlay) {
+      return
+    }
+
     void startDay().catch((error: unknown) => {
       console.error('Could not start game day', error)
     })
-  }, [startDay])
+  }, [isFreePlay, startDay])
 
   useEffect(() => {
-    tutorialStepRef.current =
-      dayState && dayState.day.mode !== 'multiplayer' ? orderStationStep : null
-  }, [dayState?.day.mode, orderStationStep])
+    tutorialStepRef.current = isTutorialGameplayMode(dayState?.day) ? orderStationStep : null
+  }, [dayState?.day, orderStationStep])
 
   useEffect(() => {
     if (!dayState || !consumeLevelBanner()) {
@@ -241,8 +247,7 @@ function OrderStationPage() {
     width: `${customerBearWidthPct}%`,
     ['--order-bear-transition-ms' as string]: `${bearTransitionMs}ms`,
   }
-  const activeTutorialStep =
-    dayState && dayState.day.mode !== 'multiplayer' ? orderStationStep : null
+  const activeTutorialStep = isTutorialGameplayMode(dayState?.day) ? orderStationStep : null
   const isWelcomeTutorialStep = activeTutorialStep === 'welcome'
   const isInteractionLocked = phase !== 'idle' || activeNpc !== null || isWelcomeTutorialStep
   const shouldRenderCustomer = activeNpc !== null || (!isWelcomeTutorialStep && waitingNpcs.length > 0)
@@ -348,13 +353,16 @@ function OrderStationPage() {
             Could not start the game day.
           </p>
         )}
-        <OrderTicketBoard
-          ticketStore={ticketStore}
-          showOrderTicketText={showOrderTicketText}
-          revealedOrderLineCount={revealedOrderLineCount}
-          onHistoryTicketClick={swapMainWithHistory}
-          disabled={isInteractionLocked}
-        />
+        {!isFreePlay && (
+          <OrderTicketBoard
+            ticketStore={ticketStore}
+            showOrderTicketText={showOrderTicketText}
+            revealedOrderLineCount={revealedOrderLineCount}
+            onHistoryTicketClick={swapMainWithHistory}
+            disabled={isInteractionLocked}
+          />
+        )}
+        {isFreePlay && <p className="station-freeplay-banner">Free play — use the dock to make drinks</p>}
         <StationDock currentStation="order" disabled={isInteractionLocked} />
       </section>
     </main>

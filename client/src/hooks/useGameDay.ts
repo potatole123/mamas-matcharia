@@ -3,9 +3,25 @@ import { Fetch } from '../Fetch'
 import { useAuth } from '../auth'
 import type {
   Drink,
+  GameDay,
   ScheduledNpc,
   StartGameDayResponse,
 } from '../types/game'
+
+const FREE_PLAY_DAY: GameDay = {
+  level: 0,
+  mode: 'freeplay',
+  gameId: 'local-freeplay',
+  seed: 0,
+  targetScore: 0,
+  npcCount: 0,
+  npcFrequencySeconds: 0,
+}
+
+const FREE_PLAY_DAY_STATE: StartGameDayResponse = {
+  day: FREE_PLAY_DAY,
+  npcs: [],
+}
 
 const MIN_SPAWN_INTERVAL_MULTIPLIER = 0.5
 const SPAWN_INTERVAL_MULTIPLIER_RANGE = 1
@@ -124,6 +140,19 @@ export function useGameDay() {
     return token
   }, [getIdToken])
 
+  const startFreePlay = useCallback(() => {
+    if (dayState) {
+      return Promise.resolve(null)
+    }
+
+    setDayStartError(null)
+    setDayState(FREE_PLAY_DAY_STATE)
+    setWaitingNpcs([])
+    setDrinksByOrderId({})
+    shouldShowLevelBannerRef.current = false
+    return Promise.resolve(FREE_PLAY_DAY_STATE)
+  }, [dayState])
+
   const startDay = useCallback(() => {
     if (dayState) {
       return Promise.resolve(null)
@@ -220,6 +249,7 @@ export function useGameDay() {
     dayStartError,
     isStartingDay,
     startDay,
+    startFreePlay,
     resetDay,
     consumeLevelBanner,
     claimWaitingNpc,

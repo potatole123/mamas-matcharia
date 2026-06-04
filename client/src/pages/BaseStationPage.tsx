@@ -27,6 +27,7 @@ import type {
   SweetnessLevel,
 } from '../stationProgress'
 import type { Recipe } from '../types/game'
+import { isFreePlayMode, isTutorialGameplayMode } from '../utils/gameMode'
 import './StationPage.css'
 
 type MilkOption = MilkCartonOption
@@ -190,8 +191,8 @@ function BaseStationPage() {
     cupHasMilk &&
     !cupShooting &&
     !isStationAnimating
-  const activeTutorialStep =
-    dayState && dayState.day.mode !== 'multiplayer' ? baseStationStep : null
+  const isFreePlay = isFreePlayMode(dayState?.day)
+  const activeTutorialStep = isTutorialGameplayMode(dayState?.day) ? baseStationStep : null
   const activeRecipe = ticketStore.mainTicket?.recipe ?? null
   const isTutorialContinueStep =
     (activeTutorialStep === 'review-flavor' && activeRecipe?.flavor === 'none') ||
@@ -611,13 +612,15 @@ function BaseStationPage() {
     <main className="station-page" aria-label="Base station page" onClick={handleStageClick}>
       <section className="station-stage">
         <img className="station-background" src={stationTable} alt="" draggable="false" />
-        <OrderTicketBoard
-          ticketStore={ticketStore}
-          showOrderTicketText={showOrderTicketText}
-          revealedOrderLineCount={revealedOrderLineCount}
-          onHistoryTicketClick={swapMainWithHistory}
-          disabled={isStationDockLocked}
-        />
+        {!isFreePlay && (
+          <OrderTicketBoard
+            ticketStore={ticketStore}
+            showOrderTicketText={showOrderTicketText}
+            revealedOrderLineCount={revealedOrderLineCount}
+            onHistoryTicketClick={swapMainWithHistory}
+            disabled={isStationDockLocked}
+          />
+        )}
         {tutorialMessage && (
           <aside className="station-tutorial-message" aria-live="polite">
             <p>{tutorialMessage}</p>

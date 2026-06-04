@@ -13,6 +13,7 @@ import { useDrinkProgress } from '../DrinkProgressContext'
 import { useGameDayContext } from '../GameDayContext'
 import { useTutorialContext } from '../TutorialContext'
 import type { OrderScoreResult, ScoredDrinkOrderSubmission } from '../types/drinkSubmission'
+import { isFreePlayMode } from '../utils/gameMode'
 import './StationPage.css'
 
 const SERVE_TASTE_START_DELAY_MS = 1000
@@ -53,6 +54,13 @@ function ServeCustomerPage() {
   const { lastOrderSubmission, scoredOrderSubmissions } = useDrinkProgress()
   const { dayState } = useGameDayContext()
   const { hasSeenFirstDrinkCongrats, completeFirstDrinkTutorial } = useTutorialContext()
+  const isFreePlay = isFreePlayMode(dayState?.day)
+
+  useEffect(() => {
+    if (isFreePlay) {
+      navigate('/base-station', { replace: true })
+    }
+  }, [isFreePlay, navigate])
   const scoredSubmission = findScoredSubmission(scoredOrderSubmissions, lastOrderSubmission?.drinkId)
   const score = scoredSubmission?.score ?? null
   const isFinalOrder = dayState
@@ -64,8 +72,7 @@ function ServeCustomerPage() {
   const [isBearTasting, setIsBearTasting] = useState(false)
   const [isScoreRevealed, setIsScoreRevealed] = useState(false)
   const shouldShowFirstDrinkCongrats = Boolean(
-    dayState &&
-      dayState.day.mode !== 'multiplayer' &&
+    dayState?.day.mode === 'singleplayer' &&
       score &&
       isScoreRevealed &&
       scoredOrderSubmissions.length === 1 &&
