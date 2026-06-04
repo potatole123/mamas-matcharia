@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { createMultiplayerGame } from '../api/multiplayer'
 import { useAuth } from '../auth'
 import backgroundStart from '../assets/start/background-start.png'
 import logoGameName from '../assets/start/logo-game-name.png'
@@ -15,30 +17,53 @@ type HomeButtonProps = {
   src: string
   className: string
   onClick?: () => void
+  disabled?: boolean
 }
 
-function HomeButton({ label, src, className, onClick }: HomeButtonProps) {
+function HomeButton({ label, src, className, onClick, disabled }: HomeButtonProps) {
   return (
     <button
       className={`home-image-button ${className}`}
       onClick={onClick}
       aria-label={label}
       type="button"
+      disabled={disabled}
     >
       <img src={src} alt="" draggable="false" />
     </button>
   )
 }
 
-const noop = () => undefined
-
 function HomePage() {
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { getIdToken, logout } = useAuth()
+  const [isCreatingMultiplayer, setIsCreatingMultiplayer] = useState(false)
+  const [multiplayerError, setMultiplayerError] = useState('')
 
   async function handleLogout() {
     await logout()
     navigate('/')
+  }
+
+  async function handleCreateMultiplayer() {
+    setIsCreatingMultiplayer(true)
+    setMultiplayerError('')
+
+    try {
+      const token = await getIdToken()
+
+      if (!token) {
+        throw new Error('Authentication token is unavailable')
+      }
+
+      const { game } = await createMultiplayerGame(token)
+      navigate('/waiting-room', { state: { game } })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not create multiplayer game'
+      setMultiplayerError(message)
+    } finally {
+      setIsCreatingMultiplayer(false)
+    }
   }
 
   return (
@@ -69,7 +94,8 @@ function HomePage() {
           className="home-create-multiplayer-button"
           label="Create multiplayer game"
           src={createMultiplayerButton}
-          onClick={noop}
+          onClick={handleCreateMultiplayer}
+          disabled={isCreatingMultiplayer}
         />
         <HomeButton
           className="home-join-multiplayer-button"
@@ -77,6 +103,7 @@ function HomePage() {
           src={joinMultiplayerButton}
           onClick={() => navigate('/enter-join-code')}
         />
+        {multiplayerError && <p className="home-error">{multiplayerError}</p>}
       </section>
     </main>
   )

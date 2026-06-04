@@ -9,6 +9,7 @@ export interface MultiplayerGameState {
   groupCode: string;
   ranking: string[];
   npcSeed: number;
+  startedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,6 +56,11 @@ const multiplayerGameStateSchema = new Schema<MultiplayerGameState>(
     npcSeed: {
       type: Number,
       required: true,
+    },
+
+    startedAt: {
+      type: Date,
+      default: null,
     },
   },
   {

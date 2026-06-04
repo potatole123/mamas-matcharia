@@ -48,7 +48,8 @@ function toSessionPayload(session: NonNullable<SessionDocument>) {
 
 async function deleteActiveGame(
   activeGame: Session["activeGame"],
-  activeGameModel: ActiveGameModel | null | undefined
+  activeGameModel: ActiveGameModel | null | undefined,
+  userId: string
 ) {
   if (!activeGame || !activeGameModel) {
     return
@@ -59,7 +60,50 @@ async function deleteActiveGame(
     return
   }
 
-  await MultiplayerGameStateModel.deleteOne({ _id: activeGame })
+  const game = await MultiplayerGameStateModel.findById(activeGame)
+
+  if (!game) {
+    return
+  }
+
+  if (game.creatorId !== userId) {
+    await MultiplayerGameStateModel.updateOne(
+      { _id: game._id },
+      {
+        $pull: {
+          playerIds: userId,
+        },
+      },
+    )
+    return
+  }
+
+  const affectedUserIds = Array.from(new Set([game.creatorId, ...game.playerIds]))
+  const affectedProfiles = await ProfileModel.find({
+    userId: {
+      $in: affectedUserIds,
+    },
+  }).select("_id")
+
+  await Promise.all([
+    MultiplayerGameStateModel.deleteOne({ _id: game._id }),
+    SessionModel.updateMany(
+      {
+        profile: {
+          $in: affectedProfiles.map((affectedProfile) => affectedProfile._id),
+        },
+        activeGame: game._id,
+        activeGameModel: "MultiplayerGameState",
+      },
+      {
+        $set: {
+          activeGame: null,
+          activeGameModel: null,
+          activeLevel: null,
+        },
+      },
+    ),
+  ])
 }
 
 export const getSession: RequestHandler = async (req, res) => {
@@ -116,7 +160,7 @@ export const deleteSession: RequestHandler = async (req, res) => {
     })
 
     if (session) {
-      await deleteActiveGame(session.activeGame, session.activeGameModel)
+      await deleteActiveGame(session.activeGame, session.activeGameModel, userId)
       await session.deleteOne()
     }
 
