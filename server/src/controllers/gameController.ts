@@ -1141,6 +1141,10 @@ export const submitGameResults: RequestHandler = async (req, res) => {
 
       profile.coinBalance = roundCurrencyAmount(profile.coinBalance + dayScore.tipsEarned)
 
+      if (level === 1 && !profile.tutorialCompleted) {
+        profile.tutorialCompleted = true
+      }
+
       if (unlockedNextLevel) {
         profile.highestDayUnlocked = level + 1
       }

@@ -1,4 +1,5 @@
 import { Fetch } from '../Fetch'
+import type { AuthProfile } from '../auth'
 import type { DayScorePayload } from '../scoring/aggregateDayScore'
 
 export type SubmitDayScoreResponse = {
@@ -7,6 +8,7 @@ export type SubmitDayScoreResponse = {
   targetScore: number
   level: number
   dayScore: DayScorePayload
+  profile: AuthProfile
 }
 
 /** Submit aggregated day score; backend handles coins, level unlock, recipe set. */
