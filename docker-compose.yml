@@ -19,7 +19,7 @@ services:
     image: mamas-matcharia-server:local
     container_name: mamas-matcharia-server
     env_file:
-      - path: ./docker.env
+      - path: ./server/.docker.env
         required: false
     environment:
       NODE_ENV: development
@@ -41,7 +41,7 @@ services:
     image: mamas-matcharia-client:local
     container_name: mamas-matcharia-client
     env_file:
-      - path: ./docker.env
+      - path: ./client/.docker.env
         required: false
     environment:
       VITE_API_BASE_URL: http://localhost:5001
