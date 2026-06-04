@@ -3,6 +3,8 @@ import stationTable from '../assets/station-shared/station-table.png'
 import heater from '../assets/base/heater.png'
 import pitcher from '../assets/base/pitcher.png'
 import pitcherMilkImage from '../assets/base/pitcher_milk.png'
+import smallCupImage from '../assets/base/small.png'
+import largeCupImage from '../assets/base/large.png'
 import iceBucket from '../assets/base/ice_bucket.png'
 import iceSpoonEmpty from '../assets/base/ice_spoon_empty.png'
 import iceSpoonFilled from '../assets/base/ice_spoon.png'
@@ -52,6 +54,19 @@ const SWEETENER_MOVE_MS = 650
 const SWEETENER_ADD_MS = 450
 const SWEETENER_RETURN_MS = 650
 
+const SWEETNESS_LEVEL_BY_PUMP_COUNT: Record<number, SweetnessLevel> = {
+  1: 'less',
+  2: 'perfect',
+  3: 'extra',
+}
+
+const SWEETNESS_PUMP_COUNT: Record<SweetnessLevel | 'none', number> = {
+  none: 0,
+  less: 1,
+  perfect: 2,
+  extra: 3,
+}
+
 const FLAVOR_OPTIONS: { id: FlavorOption; label: string }[] = [
   { id: 'strawberry', label: 'Strawberry' },
   { id: 'mango', label: 'Mango' },
@@ -85,18 +100,22 @@ function getBaseTutorialMessage(
 ) {
   switch (step) {
     case 'choose-cup':
-      return 'Choose the cup size shown on the order ticket to start building this drink.'
+      return 'Select the cup size first using the cups under the pitcher, matching the order ticket.'
     case 'add-ice':
-      return 'Click the ice bucket, then choose the ice amount shown on the order ticket.'
+      return 'Click the ice bucket once for less ice, or twice for regular ice.'
     case 'add-milk':
-      return 'Click the milk carton shown on the order ticket to add milk to the cup.'
+      return recipe?.temp === 'hot' || recipe?.iceLevel === 'none'
+        ? 'Click the milk carton shown on the order ticket to add milk to the pitcher.'
+        : 'Click the milk carton shown on the order ticket to add milk to the cup.'
+    case 'heat-milk':
+      return 'Click the pitcher to move the milk to the stovetop, heat it up, and pour it into the drink.'
     case 'review-flavor':
       return recipe?.flavor && recipe.flavor !== 'none'
         ? 'These are flavors. Check the order ticket, then click the matching flavor pump.'
         : 'These are flavors. This order says None, so leave them alone for now.'
     case 'review-sweetener':
       return recipe?.sweetener && recipe.sweetener !== 'none'
-        ? 'These are sweeteners. Check the order ticket, then click the matching jar and choose the listed sweetness level.'
+        ? 'These are sweeteners. Click the matching jar once for less sweetness, twice for perfect, or three times for extra.'
         : 'These are sweeteners. This order says None, so skip them.'
     case 'send-to-whisking':
       return 'Click the arrow button to move this cup to the next station.'
@@ -129,6 +148,10 @@ function BaseStationPage() {
     drinkAtBase?.recipe.flavor && drinkAtBase.recipe.flavor !== 'none'
       ? drinkAtBase.recipe.flavor
       : null
+  const selectedSweetener =
+    drinkAtBase?.recipe.sweetener && drinkAtBase.recipe.sweetener !== 'none'
+      ? drinkAtBase.recipe.sweetener
+      : null
   const showCupSizePopup = canCreateDrinkAtBase
   const showCupOnBase = Boolean(drinkAtBase)
   const [cupShooting, setCupShooting] = useState(false)
@@ -140,8 +163,6 @@ function BaseStationPage() {
   const [pitcherAnimPhase, setPitcherAnimPhase] = useState<PitcherAnimPhase>('idle')
   const [activeSweetener, setActiveSweetener] = useState<SweetenerOption | null>(null)
   const [sweetenerAnimPhase, setSweetenerAnimPhase] = useState<SweetenerAnimPhase>('idle')
-  const [pendingSweetener, setPendingSweetener] = useState<SweetenerOption | null>(null)
-  const [showIceLevelPopup, setShowIceLevelPopup] = useState(false)
   const pendingTimeoutsRef = useRef<number[]>([])
   const tutorialStepRef = useRef<BaseStationTutorialStep | null>(baseStationStep)
 
@@ -151,8 +172,7 @@ function BaseStationPage() {
   const isSweetenerAnimating = activeSweetener !== null
   const isStationAnimating =
     isIceAnimating || isMilkAnimating || isPitcherAnimating || isSweetenerAnimating
-  const isPopupOpen = showIceLevelPopup || Boolean(pendingSweetener)
-  const canAddFlavorAndSweetener = cupHasMilk && !isStationAnimating && !isPopupOpen
+  const canAddFlavorAndSweetener = cupHasMilk && !isStationAnimating
   const showReadyButton =
     Boolean(drinkAtBase) &&
     !drinkAtWhisking &&
@@ -268,19 +288,21 @@ function BaseStationPage() {
   }
 
   function getPitcherClassName() {
+    const highlightClass = activeTutorialStep === 'heat-milk' ? ' is-tutorial-highlight' : ''
+
     if (pitcherAnimPhase === 'at-heater') {
-      return 'base-pitcher base-pitcher-at-heater'
+      return `base-pitcher base-pitcher-at-heater${highlightClass}`
     }
     if (pitcherAnimPhase === 'pouring') {
-      return 'base-pitcher base-pitcher-over-cup base-pitcher-pouring'
+      return `base-pitcher base-pitcher-over-cup base-pitcher-pouring${highlightClass}`
     }
     if (pitcherAnimPhase === 'over-cup') {
-      return 'base-pitcher base-pitcher-over-cup'
+      return `base-pitcher base-pitcher-over-cup${highlightClass}`
     }
     if (pitcherAnimPhase === 'return') {
-      return 'base-pitcher base-pitcher-return'
+      return `base-pitcher base-pitcher-return${highlightClass}`
     }
-    return 'base-pitcher base-pitcher-rest'
+    return `base-pitcher base-pitcher-rest${highlightClass}`
   }
 
   function getPitcherImage() {
@@ -305,11 +327,15 @@ function BaseStationPage() {
       classes.push('is-tutorial-highlight')
     }
 
+    if (selectedSweetener === sweetenerId) {
+      classes.push('is-selected')
+    }
+
     return classes.join(' ')
   }
 
   function handleFlavorClick(flavorId: FlavorOption) {
-    if (!drinkAtBase || !canAddFlavorAndSweetener || pendingSweetener) return
+    if (!drinkAtBase || !canAddFlavorAndSweetener) return
     if (activeTutorialStep && activeTutorialStep !== 'complete') {
       if (
         activeTutorialStep !== 'review-flavor' ||
@@ -327,7 +353,7 @@ function BaseStationPage() {
   }
 
   function handleSweetenerClick(sweetenerId: SweetenerOption) {
-    if (!canAddFlavorAndSweetener) return
+    if (!drinkAtBase || !canAddFlavorAndSweetener) return
     if (activeTutorialStep && activeTutorialStep !== 'complete') {
       if (
         activeTutorialStep !== 'review-sweetener' ||
@@ -338,14 +364,14 @@ function BaseStationPage() {
       }
     }
 
-    setPendingSweetener(sweetenerId)
-  }
+    const currentSweetener = drinkAtBase.recipe.sweetener
+    const currentLevel = drinkAtBase.recipe.sweetnessLevel ?? 'none'
+    const currentPumpCount = currentSweetener === sweetenerId ? SWEETNESS_PUMP_COUNT[currentLevel] : 0
+    if (currentPumpCount >= 3) return
 
-  function handleSweetnessChoice(level: SweetnessLevel) {
-    if (!drinkAtBase || !pendingSweetener) return
-    const sweetener = pendingSweetener
-    setPendingSweetener(null)
-    setActiveSweetener(sweetener)
+    const nextPumpCount = Math.min(currentPumpCount + 1, 3)
+    const nextSweetnessLevel = SWEETNESS_LEVEL_BY_PUMP_COUNT[nextPumpCount]
+    setActiveSweetener(sweetenerId)
 
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -355,7 +381,7 @@ function BaseStationPage() {
 
     trackTimeout(() => {
       updateDrink(drinkAtBase.id, {
-        recipe: { sweetener, sweetnessLevel: level },
+        recipe: { sweetener: sweetenerId, sweetnessLevel: nextSweetnessLevel },
       })
       setSweetenerAnimPhase('return')
     }, SWEETENER_MOVE_MS + SWEETENER_ADD_MS)
@@ -363,7 +389,10 @@ function BaseStationPage() {
     trackTimeout(() => {
       setActiveSweetener(null)
       setSweetenerAnimPhase('idle')
-      if (tutorialStepRef.current === 'review-sweetener') {
+      if (
+        tutorialStepRef.current === 'review-sweetener' &&
+        activeRecipe?.sweetnessLevel === nextSweetnessLevel
+      ) {
         setBaseStationStep('send-to-whisking')
       }
     }, SWEETENER_MOVE_MS + SWEETENER_ADD_MS + SWEETENER_RETURN_MS)
@@ -384,7 +413,10 @@ function BaseStationPage() {
         cupVisual: { iceLevel: level },
       })
       setIceSpoonState('empty-return')
-      if (tutorialStepRef.current === 'add-ice') {
+      if (
+        tutorialStepRef.current === 'add-ice' &&
+        (!activeRecipe?.iceLevel || activeRecipe.iceLevel === level)
+      ) {
         setBaseStationStep('add-milk')
       }
     }, ICE_SCOOP_DELAY_MS + ICE_MOVE_DELAY_MS + ICE_POUR_DELAY_MS)
@@ -395,17 +427,12 @@ function BaseStationPage() {
   }
 
   function handleIceBucketClick() {
-    if (!drinkAtBase || isStationAnimating || cupHasIceLevel || showIceLevelPopup) return
-    setShowIceLevelPopup(true)
-  }
-
-  function handleIceLevelChoice(level: Exclude<IceLevel, 'none'>) {
-    setShowIceLevelPopup(false)
-    runIceScoopAnimation(level)
+    if (!drinkAtBase || isStationAnimating || iceLevel === 'regular') return
+    runIceScoopAnimation(iceLevel === 'light' ? 'regular' : 'light')
   }
 
   function handlePitcherClick() {
-    if (!drinkAtBase || isStationAnimating || isPopupOpen || !pitcherHasMilk || cupHasMilk) return
+    if (!drinkAtBase || isStationAnimating || !pitcherHasMilk || cupHasMilk) return
 
     const milkFromPitcher = pitcherMilk
     const keepIced = cupHasIceLevel
@@ -434,7 +461,7 @@ function BaseStationPage() {
       })
       updateBaseStation({ pitcherHasMilk: false, pitcherMilk: null })
       setPitcherAnimPhase('return')
-      if (tutorialStepRef.current === 'add-milk') {
+      if (tutorialStepRef.current === 'heat-milk') {
         setBaseStationStep('review-flavor')
       }
     }, PITCHER_TO_HEATER_MS + PITCHER_TO_CUP_MS + PITCHER_ROTATE_MS + PITCHER_POUR_MS)
@@ -445,7 +472,7 @@ function BaseStationPage() {
   }
 
   function handleMilkClick(milkId: MilkOption) {
-    if (!drinkAtBase || isStationAnimating || isPopupOpen) return
+    if (!drinkAtBase || isStationAnimating) return
 
     const keepIced = cupHasIceLevel
     const target: MilkPourTarget = keepIced ? 'cup' : 'pitcher'
@@ -482,7 +509,7 @@ function BaseStationPage() {
       }
       setMilkAnimPhase('return')
       if (tutorialStepRef.current === 'add-milk') {
-        setBaseStationStep('review-flavor')
+        setBaseStationStep(target === 'pitcher' ? 'heat-milk' : 'review-flavor')
       }
     }, MILK_MOVE_DELAY_MS + MILK_POUR_DELAY_MS)
 
@@ -564,7 +591,7 @@ function BaseStationPage() {
           onClick={handleIceBucketClick}
           style={{
             cursor:
-              drinkAtBase && !isStationAnimating && !cupHasIceLevel && !showIceLevelPopup
+              drinkAtBase && !isStationAnimating && iceLevel !== 'regular'
                 ? 'pointer'
                 : 'default',
             pointerEvents: 'auto',
@@ -600,7 +627,6 @@ function BaseStationPage() {
             style={{
               cursor:
                 canAddFlavorAndSweetener &&
-                !pendingSweetener &&
                 !(activeTutorialStep === 'review-flavor' && activeRecipe?.flavor === 'none')
                   ? 'pointer'
                   : 'default',
@@ -626,63 +652,6 @@ function BaseStationPage() {
             }}
           />
         ))}
-        {showIceLevelPopup && (
-          <div
-            className="base-sweetness-popup base-ice-level-popup"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="base-ice-level-popup-title"
-          >
-            <p id="base-ice-level-popup-title" className="base-sweetness-popup__title">
-              How much ice?
-            </p>
-            <div className="base-sweetness-popup__actions">
-              <button type="button" onClick={() => handleIceLevelChoice('light')}>
-                Light
-              </button>
-              <button type="button" onClick={() => handleIceLevelChoice('regular')}>
-                Regular
-              </button>
-            </div>
-            <button
-              type="button"
-              className="base-sweetness-popup__cancel"
-              onClick={() => setShowIceLevelPopup(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-        {pendingSweetener && (
-          <div
-            className="base-sweetness-popup"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="base-sweetness-popup-title"
-          >
-            <p id="base-sweetness-popup-title" className="base-sweetness-popup__title">
-              How sweet?
-            </p>
-            <div className="base-sweetness-popup__actions">
-              <button type="button" onClick={() => handleSweetnessChoice('less')}>
-                Less
-              </button>
-              <button type="button" onClick={() => handleSweetnessChoice('perfect')}>
-                Perfect
-              </button>
-              <button type="button" onClick={() => handleSweetnessChoice('extra')}>
-                Extra
-              </button>
-            </div>
-            <button
-              type="button"
-              className="base-sweetness-popup__cancel"
-              onClick={() => setPendingSweetener(null)}
-            >
-              Cancel
-            </button>
-          </div>
-        )}
         {FLAVOR_OPTIONS.map(({ id, label }) => (
           <div key={`label-${id}`} className={`base-label base-label-flavor-${id}`}>
             {label}
@@ -695,22 +664,30 @@ function BaseStationPage() {
         ))}
         {showCupSizePopup && (
           <div
-            className="base-cup-size-popup"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="base-cup-size-popup-title"
+            className="base-cup-size-chooser"
+            role="group"
+            aria-label="Choose cup size"
           >
-            <p id="base-cup-size-popup-title" className="base-cup-size-popup__title">
-              Please choose cup size
-            </p>
-            <div className="base-cup-size-popup__actions">
-              <button type="button" onClick={() => handleCupSizeChoice('small')}>
-                Small
-              </button>
-              <button type="button" onClick={() => handleCupSizeChoice('large')}>
-                Large
-              </button>
-            </div>
+            <button
+              type="button"
+              className={`base-cup-size-choice base-cup-size-choice--small${
+                activeTutorialStep === 'choose-cup' ? ' is-tutorial-highlight' : ''
+              }`}
+              onClick={() => handleCupSizeChoice('small')}
+            >
+              <img src={smallCupImage} alt="" draggable="false" />
+              <span>Small</span>
+            </button>
+            <button
+              type="button"
+              className={`base-cup-size-choice base-cup-size-choice--large${
+                activeTutorialStep === 'choose-cup' ? ' is-tutorial-highlight' : ''
+              }`}
+              onClick={() => handleCupSizeChoice('large')}
+            >
+              <img src={largeCupImage} alt="" draggable="false" />
+              <span>Large</span>
+            </button>
           </div>
         )}
         {(showCupOnBase || departingCup) && (

@@ -20,6 +20,7 @@ export type BaseStationTutorialStep =
   | 'choose-cup'
   | 'add-ice'
   | 'add-milk'
+  | 'heat-milk'
   | 'review-flavor'
   | 'review-sweetener'
   | 'send-to-whisking'
