@@ -205,6 +205,13 @@ function BaseStationPage() {
       activeTutorialStep !== 'complete' &&
       activeTutorialStep !== 'go-to-whisking',
   )
+  const isCupSizeEnabled = !activeTutorialStep || activeTutorialStep === 'complete' || activeTutorialStep === 'choose-cup'
+  const isIceBucketEnabled = !activeTutorialStep || activeTutorialStep === 'complete' || activeTutorialStep === 'add-ice'
+  const isMilkEnabled = !activeTutorialStep || activeTutorialStep === 'complete' || activeTutorialStep === 'add-milk'
+  const isPitcherEnabled = !activeTutorialStep || activeTutorialStep === 'complete' || activeTutorialStep === 'heat-milk'
+  const isFlavorEnabled = !activeTutorialStep || activeTutorialStep === 'complete' || activeTutorialStep === 'review-flavor'
+  const isSweetenerEnabled = !activeTutorialStep || activeTutorialStep === 'complete' || activeTutorialStep === 'review-sweetener'
+  const isReadyButtonEnabled = !activeTutorialStep || activeTutorialStep === 'complete' || activeTutorialStep === 'send-to-whisking'
 
   useEffect(() => {
     tutorialStepRef.current = activeTutorialStep
@@ -249,6 +256,7 @@ function BaseStationPage() {
   }
 
   function handleCupSizeChoice(size: DrinkSize) {
+    if (!isCupSizeEnabled) return
     createDrinkAtBase(size)
     if (tutorialStepRef.current === 'choose-cup') {
       setBaseStationStep(getNextBaseStepAfterCup(activeRecipe))
@@ -256,6 +264,7 @@ function BaseStationPage() {
   }
 
   function handleReadyClick() {
+    if (!isReadyButtonEnabled) return
     if (!drinkAtBase || drinkAtWhisking || !cupHasMilk || isStationAnimating || cupShooting) return
     const cupSnapshot = { ...drinkAtBase.cupVisual, hasMilk: true }
     setDepartingCup(cupSnapshot)
@@ -381,6 +390,7 @@ function BaseStationPage() {
   }
 
   function handleFlavorClick(flavorId: FlavorOption) {
+    if (!isFlavorEnabled) return
     if (!drinkAtBase || !canAddFlavorAndSweetener || selectedFlavor) return
     if (activeTutorialStep && activeTutorialStep !== 'complete') {
       if (
@@ -415,6 +425,7 @@ function BaseStationPage() {
   }
 
   function handleSweetenerClick(sweetenerId: SweetenerOption) {
+    if (!isSweetenerEnabled) return
     if (!drinkAtBase || !canAddFlavorAndSweetener) return
     if (activeTutorialStep && activeTutorialStep !== 'complete') {
       if (
@@ -489,11 +500,13 @@ function BaseStationPage() {
   }
 
   function handleIceBucketClick() {
+    if (!isIceBucketEnabled) return
     if (!drinkAtBase || isStationAnimating || iceLevel === 'regular') return
     runIceScoopAnimation(iceLevel === 'light' ? 'regular' : 'light')
   }
 
   function handlePitcherClick() {
+    if (!isPitcherEnabled) return
     if (!drinkAtBase || isStationAnimating || !pitcherHasMilk || cupHasMilk) return
 
     const milkFromPitcher = pitcherMilk
@@ -534,6 +547,7 @@ function BaseStationPage() {
   }
 
   function handleMilkClick(milkId: MilkOption) {
+    if (!isMilkEnabled) return
     if (!drinkAtBase || isStationAnimating) return
 
     const keepIced = cupHasIceLevel
@@ -636,7 +650,11 @@ function BaseStationPage() {
             alt=""
             draggable="false"
             onClick={() => handleMilkClick(id)}
-            style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+            style={{ 
+              cursor: isMilkEnabled ? 'pointer' : 'default', 
+              pointerEvents: isMilkEnabled ? 'auto' : 'none',
+              opacity: isMilkEnabled ? 1 : 0.5
+            }}
           />
         ))}
         {MILK_OPTIONS.map(({ id, label }) => (
@@ -653,10 +671,11 @@ function BaseStationPage() {
           onClick={handleIceBucketClick}
           style={{
             cursor:
-              drinkAtBase && !isStationAnimating && iceLevel !== 'regular'
+              isIceBucketEnabled && drinkAtBase && !isStationAnimating && iceLevel !== 'regular'
                 ? 'pointer'
                 : 'default',
-            pointerEvents: 'auto',
+            pointerEvents: isIceBucketEnabled ? 'auto' : 'none',
+            opacity: isIceBucketEnabled ? 1 : 0.5,
           }}
         />
         <img
@@ -672,8 +691,9 @@ function BaseStationPage() {
           draggable="false"
           onClick={handlePitcherClick}
           style={{
-            cursor: pitcherHasMilk && !isStationAnimating && !cupHasMilk ? 'pointer' : 'default',
-            pointerEvents: 'auto',
+            cursor: isPitcherEnabled && pitcherHasMilk && !isStationAnimating && !cupHasMilk ? 'pointer' : 'default',
+            pointerEvents: isPitcherEnabled ? 'auto' : 'none',
+            opacity: isPitcherEnabled ? 1 : 0.5,
           }}
         />
         {FLAVOR_OPTIONS.map(({ id }) => (
@@ -686,11 +706,12 @@ function BaseStationPage() {
             onClick={() => handleFlavorClick(id)}
             style={{
               cursor:
-                canAddFlavorAndSweetener &&
+                isFlavorEnabled && canAddFlavorAndSweetener &&
                 !(activeTutorialStep === 'review-flavor' && activeRecipe?.flavor === 'none')
                   ? 'pointer'
                   : 'default',
-              pointerEvents: 'auto',
+              pointerEvents: isFlavorEnabled ? 'auto' : 'none',
+              opacity: isFlavorEnabled ? 1 : 0.5,
             }}
           />
         ))}
@@ -704,11 +725,12 @@ function BaseStationPage() {
             onClick={() => handleSweetenerClick(id)}
             style={{
               cursor:
-                canAddFlavorAndSweetener &&
+                isSweetenerEnabled && canAddFlavorAndSweetener &&
                 !(activeTutorialStep === 'review-sweetener' && activeRecipe?.sweetener === 'none')
                   ? 'pointer'
                   : 'default',
-              pointerEvents: 'auto',
+              pointerEvents: isSweetenerEnabled ? 'auto' : 'none',
+              opacity: isSweetenerEnabled ? 1 : 0.5,
             }}
           />
         ))}
@@ -734,6 +756,8 @@ function BaseStationPage() {
                 activeTutorialStep === 'choose-cup' ? ' is-tutorial-highlight' : ''
               }`}
               onClick={() => handleCupSizeChoice('small')}
+              disabled={!isCupSizeEnabled}
+              style={{ opacity: isCupSizeEnabled ? 1 : 0.5 }}
             >
               <img src={smallCupImage} alt="" draggable="false" />
               <span>Small</span>
@@ -744,6 +768,8 @@ function BaseStationPage() {
                 activeTutorialStep === 'choose-cup' ? ' is-tutorial-highlight' : ''
               }`}
               onClick={() => handleCupSizeChoice('large')}
+              disabled={!isCupSizeEnabled}
+              style={{ opacity: isCupSizeEnabled ? 1 : 0.5 }}
             >
               <img src={largeCupImage} alt="" draggable="false" />
               <span>Large</span>
@@ -765,6 +791,8 @@ function BaseStationPage() {
             className={`station-next-button${activeTutorialStep === 'send-to-whisking' ? ' is-tutorial-highlight' : ''}`}
             aria-label="Move cup to Whisking Station"
             onClick={handleReadyClick}
+            disabled={!isReadyButtonEnabled}
+            style={{ opacity: isReadyButtonEnabled ? 1 : 0.5 }}
           >
             <span className="station-next-button__icon" aria-hidden="true" />
           </button>
