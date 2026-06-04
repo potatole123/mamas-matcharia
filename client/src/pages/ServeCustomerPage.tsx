@@ -11,6 +11,7 @@ import drinkSmall from '../assets/order/drink-small.png'
 import orderCounter from '../assets/order/order-counter.png'
 import { useDrinkProgress } from '../DrinkProgressContext'
 import { useGameDayContext } from '../GameDayContext'
+import { useTutorialContext } from '../TutorialContext'
 import type { OrderScoreResult, ScoredDrinkOrderSubmission } from '../types/drinkSubmission'
 import './StationPage.css'
 
@@ -51,6 +52,7 @@ function ServeCustomerPage() {
   const navigate = useNavigate()
   const { lastOrderSubmission, scoredOrderSubmissions } = useDrinkProgress()
   const { dayState } = useGameDayContext()
+  const { hasSeenFirstDrinkCongrats, completeFirstDrinkTutorial } = useTutorialContext()
   const scoredSubmission = findScoredSubmission(scoredOrderSubmissions, lastOrderSubmission?.drinkId)
   const score = scoredSubmission?.score ?? null
   const isFinalOrder = dayState
@@ -61,6 +63,14 @@ function ServeCustomerPage() {
     servedDrinkSize === 'large' ? drinkLarge : servedDrinkSize === 'small' ? drinkSmall : null
   const [isBearTasting, setIsBearTasting] = useState(false)
   const [isScoreRevealed, setIsScoreRevealed] = useState(false)
+  const shouldShowFirstDrinkCongrats = Boolean(
+    dayState &&
+      dayState.day.mode !== 'multiplayer' &&
+      score &&
+      isScoreRevealed &&
+      scoredOrderSubmissions.length === 1 &&
+      !hasSeenFirstDrinkCongrats,
+  )
   const bearReactionImage =
     score && isScoreRevealed ? (score.totalScore >= 9 ? bearLaugh : bearSad) : bearSmile
   const bearImage = isBearTasting ? bearOpen : bearReactionImage
@@ -82,18 +92,30 @@ function ServeCustomerPage() {
       () => setIsScoreRevealed(true),
       SERVE_SCORE_REVEAL_DELAY_MS,
     )
-    const returnToOrderTimeoutId = window.setTimeout(
-      () => navigate(isFinalOrder ? '/game-summary' : '/order-station'),
-      SERVE_SCORE_REVEAL_DELAY_MS + SERVE_RETURN_TO_ORDER_DELAY_MS,
-    )
-
     return () => {
       window.clearTimeout(openMouthTimeoutId)
       window.clearTimeout(smileTimeoutId)
       window.clearTimeout(revealScoreTimeoutId)
-      window.clearTimeout(returnToOrderTimeoutId)
     }
-  }, [isFinalOrder, lastOrderSubmission?.drinkId, navigate, score, servedDrinkSize])
+  }, [lastOrderSubmission?.drinkId, score, servedDrinkSize])
+
+  useEffect(() => {
+    if (!score || !isScoreRevealed || shouldShowFirstDrinkCongrats) {
+      return
+    }
+
+    const returnToOrderTimeoutId = window.setTimeout(
+      () => navigate(isFinalOrder ? '/game-summary' : '/order-station'),
+      SERVE_RETURN_TO_ORDER_DELAY_MS,
+    )
+
+    return () => window.clearTimeout(returnToOrderTimeoutId)
+  }, [isFinalOrder, isScoreRevealed, navigate, score, shouldShowFirstDrinkCongrats])
+
+  function handleFirstDrinkContinue() {
+    completeFirstDrinkTutorial()
+    navigate(isFinalOrder ? '/game-summary' : '/order-station')
+  }
 
   return (
     <main className="station-page serve-customer-page" aria-label="Serve customer page">
@@ -145,6 +167,25 @@ function ServeCustomerPage() {
                 <dd>${score.tipsEarned.toFixed(2)}</dd>
               </div>
             </dl>
+          </section>
+        )}
+        {shouldShowFirstDrinkCongrats && (
+          <section className="serve-customer-tutorial-complete" aria-live="polite">
+            <p className="serve-customer-tutorial-complete__eyebrow">Nice work</p>
+            <h1 className="serve-customer-tutorial-complete__title">
+              You made your first matcha!
+            </h1>
+            <p className="serve-customer-tutorial-complete__body">
+              Keep checking each order ticket, build the drink station by station, then serve it
+              when it is ready.
+            </p>
+            <button
+              type="button"
+              className="serve-customer-tutorial-complete__button"
+              onClick={handleFirstDrinkContinue}
+            >
+              Continue
+            </button>
           </section>
         )}
       </section>

@@ -5,6 +5,7 @@ import { useAuth } from '../auth'
 import { useDrinkProgress } from '../DrinkProgressContext'
 import { useGameDayContext } from '../GameDayContext'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
+import { useTutorialContext } from '../TutorialContext'
 import exitButton from '../assets/station-shared/exit-button.png'
 import orderButton from '../assets/station-shared/order-button.png'
 import baseButton from '../assets/station-shared/base-button.png'
@@ -17,6 +18,8 @@ type StationKey = 'order' | 'base' | 'whisking' | 'topping'
 type StationDockProps = {
   currentStation: StationKey
   disabled?: boolean
+  highlightedStation?: StationKey | null
+  onStationNavigate?: (station: StationKey) => void
 }
 
 const stationButtons: Array<{
@@ -41,12 +44,18 @@ const stationButtons: Array<{
   },
 ]
 
-function StationDock({ currentStation, disabled = false }: StationDockProps) {
+function StationDock({
+  currentStation,
+  disabled = false,
+  highlightedStation = null,
+  onStationNavigate,
+}: StationDockProps) {
   const navigate = useNavigate()
   const { getIdToken } = useAuth()
   const { resetDay } = useGameDayContext()
   const { resetTickets } = useOrderTicketsContext()
   const { resetAllStationProgress } = useDrinkProgress()
+  const { resetTutorialProgress } = useTutorialContext()
   const [isExiting, setIsExiting] = useState(false)
 
   async function handleExitClick(event: MouseEvent<HTMLButtonElement>) {
@@ -70,6 +79,7 @@ function StationDock({ currentStation, disabled = false }: StationDockProps) {
       resetDay()
       resetTickets()
       resetAllStationProgress()
+      resetTutorialProgress()
       navigate('/home', { replace: true })
     } catch (error) {
       console.error('Could not exit game session', error)
@@ -91,16 +101,20 @@ function StationDock({ currentStation, disabled = false }: StationDockProps) {
       <nav className="station-dock" aria-label="Station navigation">
         {stationButtons.map((station) => {
           const isActive = station.key === currentStation
+          const isHighlighted = station.key === highlightedStation
 
           return (
             <button
               key={station.key}
-              className={`station-dock-button ${isActive ? 'is-active' : ''}`}
+              className={`station-dock-button ${isActive ? 'is-active' : ''}${isHighlighted ? ' is-tutorial-highlight' : ''}`}
               type="button"
               aria-label={station.label}
               aria-current={isActive ? 'page' : undefined}
               disabled={disabled}
-              onClick={() => navigate(station.path)}
+              onClick={() => {
+                onStationNavigate?.(station.key)
+                navigate(station.path)
+              }}
             >
               <img src={station.imageSrc} alt="" draggable="false" />
             </button>

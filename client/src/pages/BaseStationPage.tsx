@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import stationTable from '../assets/station-shared/station-table.png'
 import heater from '../assets/base/heater.png'
 import pitcher from '../assets/base/pitcher.png'
@@ -10,12 +10,13 @@ import flavorPump from '../assets/base/flavor.png'
 import sweetenerJar from '../assets/base/sweetener.png'
 import milkCarton from '../assets/base/milk.png'
 import milkPour from '../assets/base/milk_pour.png'
-import readyButton from '../assets/ready_button.png'
 import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
 import { useDrinkProgress } from '../DrinkProgressContext'
 import { cupHasIce, getCupPreviewSrc, type BaseCupSnapshot, type DrinkSize } from '../drinkCup'
+import { useGameDayContext } from '../GameDayContext'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
+import { useTutorialContext, type BaseStationTutorialStep } from '../TutorialContext'
 import { MILK_CARTON_TO_RECIPE, type MilkCartonOption } from '../utils/drinkMappings'
 import type { IceLevel } from '../../../server/src/types/enums'
 import type {
@@ -23,6 +24,7 @@ import type {
   SweetenerOption,
   SweetnessLevel,
 } from '../stationProgress'
+import type { Recipe } from '../types/game'
 import './StationPage.css'
 
 type MilkOption = MilkCartonOption
@@ -30,6 +32,7 @@ type IceSpoonState = 'idle' | 'has-ice' | 'filled-over-cup' | 'empty-return'
 type MilkPourTarget = 'cup' | 'pitcher'
 type MilkAnimPhase = 'idle' | 'over-target' | 'pouring' | 'return'
 type PitcherAnimPhase = 'idle' | 'at-heater' | 'over-cup' | 'pouring' | 'return'
+type SweetenerAnimPhase = 'idle' | 'over-cup' | 'return'
 
 const ICE_SCOOP_DELAY_MS = 500
 const ICE_MOVE_DELAY_MS = 500
@@ -45,6 +48,9 @@ const PITCHER_TO_CUP_MS = 800
 const PITCHER_ROTATE_MS = 600
 const PITCHER_POUR_MS = 600
 const PITCHER_RETURN_MS = 800
+const SWEETENER_MOVE_MS = 650
+const SWEETENER_ADD_MS = 450
+const SWEETENER_RETURN_MS = 650
 
 const FLAVOR_OPTIONS: { id: FlavorOption; label: string }[] = [
   { id: 'strawberry', label: 'Strawberry' },
@@ -65,9 +71,45 @@ const MILK_OPTIONS: { id: MilkOption; label: string }[] = [
   { id: 'almond', label: 'Almond' },
 ]
 
+function getNextBaseStepAfterCup(recipe: Recipe | null): BaseStationTutorialStep {
+  if (recipe && (recipe.temp === 'hot' || recipe.iceLevel === 'none')) {
+    return 'add-milk'
+  }
+
+  return 'add-ice'
+}
+
+function getBaseTutorialMessage(
+  step: Exclude<BaseStationTutorialStep, 'complete'>,
+  recipe: Recipe | null,
+) {
+  switch (step) {
+    case 'choose-cup':
+      return 'Choose the cup size shown on the order ticket to start building this drink.'
+    case 'add-ice':
+      return 'Click the ice bucket, then choose the ice amount shown on the order ticket.'
+    case 'add-milk':
+      return 'Click the milk carton shown on the order ticket to add milk to the cup.'
+    case 'review-flavor':
+      return recipe?.flavor && recipe.flavor !== 'none'
+        ? 'These are flavors. Check the order ticket, then click the matching flavor pump.'
+        : 'These are flavors. This order says None, so leave them alone for now.'
+    case 'review-sweetener':
+      return recipe?.sweetener && recipe.sweetener !== 'none'
+        ? 'These are sweeteners. Check the order ticket, then click the matching jar and choose the listed sweetness level.'
+        : 'These are sweeteners. This order says None, so skip them.'
+    case 'send-to-whisking':
+      return 'Click the arrow button to move this cup to the next station.'
+    case 'go-to-whisking':
+      return 'Now click Whisking Station to keep building the drink.'
+  }
+}
+
 function BaseStationPage() {
   const { ticketStore, showOrderTicketText, revealedOrderLineCount, swapMainWithHistory } =
     useOrderTicketsContext()
+  const { dayState } = useGameDayContext()
+  const { baseStationStep, setBaseStationStep } = useTutorialContext()
   const {
     drinkAtBase,
     drinkAtWhisking,
@@ -87,10 +129,6 @@ function BaseStationPage() {
     drinkAtBase?.recipe.flavor && drinkAtBase.recipe.flavor !== 'none'
       ? drinkAtBase.recipe.flavor
       : null
-  const selectedSweetener =
-    drinkAtBase?.recipe.sweetener && drinkAtBase.recipe.sweetener !== 'none'
-      ? drinkAtBase.recipe.sweetener
-      : null
   const showCupSizePopup = canCreateDrinkAtBase
   const showCupOnBase = Boolean(drinkAtBase)
   const [cupShooting, setCupShooting] = useState(false)
@@ -100,14 +138,19 @@ function BaseStationPage() {
   const [milkAnimPhase, setMilkAnimPhase] = useState<MilkAnimPhase>('idle')
   const [milkPourTarget, setMilkPourTarget] = useState<MilkPourTarget>('cup')
   const [pitcherAnimPhase, setPitcherAnimPhase] = useState<PitcherAnimPhase>('idle')
+  const [activeSweetener, setActiveSweetener] = useState<SweetenerOption | null>(null)
+  const [sweetenerAnimPhase, setSweetenerAnimPhase] = useState<SweetenerAnimPhase>('idle')
   const [pendingSweetener, setPendingSweetener] = useState<SweetenerOption | null>(null)
   const [showIceLevelPopup, setShowIceLevelPopup] = useState(false)
   const pendingTimeoutsRef = useRef<number[]>([])
+  const tutorialStepRef = useRef<BaseStationTutorialStep | null>(baseStationStep)
 
   const isIceAnimating = iceSpoonState !== 'idle'
   const isMilkAnimating = activeMilk !== null
   const isPitcherAnimating = pitcherAnimPhase !== 'idle'
-  const isStationAnimating = isIceAnimating || isMilkAnimating || isPitcherAnimating
+  const isSweetenerAnimating = activeSweetener !== null
+  const isStationAnimating =
+    isIceAnimating || isMilkAnimating || isPitcherAnimating || isSweetenerAnimating
   const isPopupOpen = showIceLevelPopup || Boolean(pendingSweetener)
   const canAddFlavorAndSweetener = cupHasMilk && !isStationAnimating && !isPopupOpen
   const showReadyButton =
@@ -116,6 +159,25 @@ function BaseStationPage() {
     cupHasMilk &&
     !cupShooting &&
     !isStationAnimating
+  const activeTutorialStep =
+    dayState && dayState.day.mode !== 'multiplayer' ? baseStationStep : null
+  const activeRecipe = ticketStore.mainTicket?.recipe ?? null
+  const isTutorialContinueStep =
+    (activeTutorialStep === 'review-flavor' && activeRecipe?.flavor === 'none') ||
+    (activeTutorialStep === 'review-sweetener' && activeRecipe?.sweetener === 'none')
+  const tutorialMessage =
+    activeTutorialStep && activeTutorialStep !== 'complete'
+      ? getBaseTutorialMessage(activeTutorialStep, activeRecipe)
+      : null
+  const isStationDockLocked = Boolean(
+    activeTutorialStep &&
+      activeTutorialStep !== 'complete' &&
+      activeTutorialStep !== 'go-to-whisking',
+  )
+
+  useEffect(() => {
+    tutorialStepRef.current = activeTutorialStep
+  }, [activeTutorialStep])
 
   function trackTimeout(callback: () => void, delayMs: number) {
     const timeoutId = window.setTimeout(callback, delayMs)
@@ -144,6 +206,9 @@ function BaseStationPage() {
 
   function handleCupSizeChoice(size: DrinkSize) {
     createDrinkAtBase(size)
+    if (tutorialStepRef.current === 'choose-cup') {
+      setBaseStationStep(getNextBaseStepAfterCup(activeRecipe))
+    }
   }
 
   function handleReadyClick() {
@@ -152,6 +217,9 @@ function BaseStationPage() {
     setDepartingCup(cupSnapshot)
     sendCupToWhisking(cupSnapshot)
     setCupShooting(true)
+    if (tutorialStepRef.current === 'send-to-whisking') {
+      setBaseStationStep('go-to-whisking')
+    }
   }
 
   function handleCupShootAnimationEnd() {
@@ -175,14 +243,19 @@ function BaseStationPage() {
   }
 
   function getMilkClassName(milkId: MilkOption) {
+    const shouldHighlightMilk = activeTutorialStep === 'add-milk'
+
     if (activeMilk !== milkId || milkAnimPhase === 'idle') {
-      return `base-milk base-milk-${milkId}`
+      return `base-milk base-milk-${milkId}${shouldHighlightMilk ? ' is-tutorial-highlight' : ''}`
     }
 
     const classes = ['base-milk', `base-milk-${milkId}`]
     classes.push(milkPourTarget === 'cup' ? 'base-milk-over-cup' : 'base-milk-over-pitcher')
     if (milkAnimPhase === 'return') {
       classes.push('base-milk-returning')
+    }
+    if (shouldHighlightMilk) {
+      classes.push('is-tutorial-highlight')
     }
     return classes.join(' ')
   }
@@ -217,22 +290,83 @@ function BaseStationPage() {
     return pitcher
   }
 
+  function getSweetenerClassName(sweetenerId: SweetenerOption) {
+    const classes = ['base-sweetener', `base-sweetener-${sweetenerId}`]
+
+    if (activeSweetener === sweetenerId && sweetenerAnimPhase === 'over-cup') {
+      classes.push('base-sweetener-over-cup')
+    }
+
+    if (activeSweetener === sweetenerId && sweetenerAnimPhase === 'return') {
+      classes.push('base-sweetener-returning')
+    }
+
+    if (activeTutorialStep === 'review-sweetener' && activeSweetener === null) {
+      classes.push('is-tutorial-highlight')
+    }
+
+    return classes.join(' ')
+  }
+
   function handleFlavorClick(flavorId: FlavorOption) {
     if (!drinkAtBase || !canAddFlavorAndSweetener || pendingSweetener) return
+    if (activeTutorialStep && activeTutorialStep !== 'complete') {
+      if (
+        activeTutorialStep !== 'review-flavor' ||
+        activeRecipe?.flavor === 'none' ||
+        (activeRecipe?.flavor && activeRecipe.flavor !== flavorId)
+      ) {
+        return
+      }
+    }
+
     updateDrink(drinkAtBase.id, { recipe: { flavor: flavorId } })
+    if (tutorialStepRef.current === 'review-flavor') {
+      setBaseStationStep('review-sweetener')
+    }
   }
 
   function handleSweetenerClick(sweetenerId: SweetenerOption) {
     if (!canAddFlavorAndSweetener) return
+    if (activeTutorialStep && activeTutorialStep !== 'complete') {
+      if (
+        activeTutorialStep !== 'review-sweetener' ||
+        activeRecipe?.sweetener === 'none' ||
+        (activeRecipe?.sweetener && activeRecipe.sweetener !== sweetenerId)
+      ) {
+        return
+      }
+    }
+
     setPendingSweetener(sweetenerId)
   }
 
   function handleSweetnessChoice(level: SweetnessLevel) {
     if (!drinkAtBase || !pendingSweetener) return
-    updateDrink(drinkAtBase.id, {
-      recipe: { sweetener: pendingSweetener, sweetnessLevel: level },
-    })
+    const sweetener = pendingSweetener
     setPendingSweetener(null)
+    setActiveSweetener(sweetener)
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setSweetenerAnimPhase('over-cup')
+      })
+    })
+
+    trackTimeout(() => {
+      updateDrink(drinkAtBase.id, {
+        recipe: { sweetener, sweetnessLevel: level },
+      })
+      setSweetenerAnimPhase('return')
+    }, SWEETENER_MOVE_MS + SWEETENER_ADD_MS)
+
+    trackTimeout(() => {
+      setActiveSweetener(null)
+      setSweetenerAnimPhase('idle')
+      if (tutorialStepRef.current === 'review-sweetener') {
+        setBaseStationStep('send-to-whisking')
+      }
+    }, SWEETENER_MOVE_MS + SWEETENER_ADD_MS + SWEETENER_RETURN_MS)
   }
 
   function runIceScoopAnimation(level: Exclude<IceLevel, 'none'>) {
@@ -250,6 +384,9 @@ function BaseStationPage() {
         cupVisual: { iceLevel: level },
       })
       setIceSpoonState('empty-return')
+      if (tutorialStepRef.current === 'add-ice') {
+        setBaseStationStep('add-milk')
+      }
     }, ICE_SCOOP_DELAY_MS + ICE_MOVE_DELAY_MS + ICE_POUR_DELAY_MS)
 
     trackTimeout(() => {
@@ -297,6 +434,9 @@ function BaseStationPage() {
       })
       updateBaseStation({ pitcherHasMilk: false, pitcherMilk: null })
       setPitcherAnimPhase('return')
+      if (tutorialStepRef.current === 'add-milk') {
+        setBaseStationStep('review-flavor')
+      }
     }, PITCHER_TO_HEATER_MS + PITCHER_TO_CUP_MS + PITCHER_ROTATE_MS + PITCHER_POUR_MS)
 
     trackTimeout(() => {
@@ -341,6 +481,9 @@ function BaseStationPage() {
         })
       }
       setMilkAnimPhase('return')
+      if (tutorialStepRef.current === 'add-milk') {
+        setBaseStationStep('review-flavor')
+      }
     }, MILK_MOVE_DELAY_MS + MILK_POUR_DELAY_MS)
 
     trackTimeout(() => {
@@ -349,8 +492,34 @@ function BaseStationPage() {
     }, MILK_MOVE_DELAY_MS + MILK_POUR_DELAY_MS + MILK_RETURN_DELAY_MS)
   }
 
+  function handleStageClick(event: MouseEvent<HTMLElement>) {
+    const clickedElement = event.target as Element
+    if (
+      clickedElement.closest('.station-dock') ||
+      clickedElement.closest('.station-exit-button') ||
+      clickedElement.closest('button')
+    ) {
+      return
+    }
+
+    if (activeTutorialStep === 'review-flavor' && activeRecipe?.flavor === 'none') {
+      setBaseStationStep('review-sweetener')
+      return
+    }
+
+    if (activeTutorialStep === 'review-sweetener' && activeRecipe?.sweetener === 'none') {
+      setBaseStationStep('send-to-whisking')
+    }
+  }
+
+  function handleStationNavigate(station: 'order' | 'base' | 'whisking' | 'topping') {
+    if (activeTutorialStep === 'go-to-whisking' && station === 'whisking') {
+      setBaseStationStep('complete')
+    }
+  }
+
   return (
-    <main className="station-page" aria-label="Base station page">
+    <main className="station-page" aria-label="Base station page" onClick={handleStageClick}>
       <section className="station-stage">
         <img className="station-background" src={stationTable} alt="" draggable="false" />
         <OrderTicketBoard
@@ -358,7 +527,18 @@ function BaseStationPage() {
           showOrderTicketText={showOrderTicketText}
           revealedOrderLineCount={revealedOrderLineCount}
           onHistoryTicketClick={swapMainWithHistory}
+          disabled={isStationDockLocked}
         />
+        {tutorialMessage && (
+          <aside className="station-tutorial-message" aria-live="polite">
+            <p>{tutorialMessage}</p>
+            {isTutorialContinueStep && (
+              <span className="station-tutorial-next">
+                Click anywhere to continue <b aria-hidden="true">›</b>
+              </span>
+            )}
+          </aside>
+        )}
         {MILK_OPTIONS.map(({ id }) => (
           <img
             key={id}
@@ -377,7 +557,7 @@ function BaseStationPage() {
         ))}
         <img className="base-heater" src={heater} alt="" draggable="false" />
         <img
-          className="base-ice-bucket"
+          className={`base-ice-bucket${activeTutorialStep === 'add-ice' ? ' is-tutorial-highlight' : ''}`}
           src={iceBucket}
           alt=""
           draggable="false"
@@ -410,13 +590,20 @@ function BaseStationPage() {
         {FLAVOR_OPTIONS.map(({ id }) => (
           <img
             key={id}
-            className={`base-flavor base-flavor-${id}${selectedFlavor === id ? ' is-selected' : ''}`}
+            className={`base-flavor base-flavor-${id}${selectedFlavor === id ? ' is-selected' : ''}${
+              activeTutorialStep === 'review-flavor' ? ' is-tutorial-highlight' : ''
+            }`}
             src={flavorPump}
             alt=""
             draggable="false"
             onClick={() => handleFlavorClick(id)}
             style={{
-              cursor: canAddFlavorAndSweetener && !pendingSweetener ? 'pointer' : 'default',
+              cursor:
+                canAddFlavorAndSweetener &&
+                !pendingSweetener &&
+                !(activeTutorialStep === 'review-flavor' && activeRecipe?.flavor === 'none')
+                  ? 'pointer'
+                  : 'default',
               pointerEvents: 'auto',
             }}
           />
@@ -424,13 +611,17 @@ function BaseStationPage() {
         {SWEETENER_OPTIONS.map(({ id }) => (
           <img
             key={id}
-            className={`base-sweetener base-sweetener-${id}${selectedSweetener === id ? ' is-selected' : ''}`}
+            className={getSweetenerClassName(id)}
             src={sweetenerJar}
             alt=""
             draggable="false"
             onClick={() => handleSweetenerClick(id)}
             style={{
-              cursor: canAddFlavorAndSweetener ? 'pointer' : 'default',
+              cursor:
+                canAddFlavorAndSweetener &&
+                !(activeTutorialStep === 'review-sweetener' && activeRecipe?.sweetener === 'none')
+                  ? 'pointer'
+                  : 'default',
               pointerEvents: 'auto',
             }}
           />
@@ -534,14 +725,19 @@ function BaseStationPage() {
         {showReadyButton && (
           <button
             type="button"
-            className="station-ready-button"
-            aria-label="Ready"
+            className={`station-next-button${activeTutorialStep === 'send-to-whisking' ? ' is-tutorial-highlight' : ''}`}
+            aria-label="Move cup to Whisking Station"
             onClick={handleReadyClick}
           >
-            <img src={readyButton} alt="" draggable={false} />
+            <span className="station-next-button__icon" aria-hidden="true" />
           </button>
         )}
-        <StationDock currentStation="base" />
+        <StationDock
+          currentStation="base"
+          disabled={isStationDockLocked}
+          highlightedStation={activeTutorialStep === 'go-to-whisking' ? 'whisking' : null}
+          onStationNavigate={handleStationNavigate}
+        />
       </section>
     </main>
   )

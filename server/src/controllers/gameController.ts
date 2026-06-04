@@ -27,6 +27,8 @@ import {
   SWEETNESS_LEVEL,
   TEMP,
   type Status,
+  type Sweetener,
+  type SweetnessLevel,
 } from "../types/enums"
 
 const JOIN_CODE_PATTERN = /^\d{6}$/
@@ -193,6 +195,25 @@ function choose<T>(values: readonly T[], random: () => number) {
   return values[Math.floor(random() * values.length)] as T
 }
 
+function chooseSweetnessLevel(
+    sweetener: Sweetener,
+    sweetnessLevelSet: readonly SweetnessLevel[],
+    random: () => number,
+) {
+  if (sweetener === "none") {
+    return "none"
+  }
+
+  const measuredSweetnessLevels = sweetnessLevelSet.filter(
+      (sweetnessLevel) => sweetnessLevel !== "none",
+  )
+
+  return choose(
+      measuredSweetnessLevels.length > 0 ? measuredSweetnessLevels : sweetnessLevelSet,
+      random,
+  )
+}
+
 function hashStringToNumber(value: string) {
   let hash = 0
 
@@ -208,6 +229,8 @@ function buildRecipe(
     recipeSet: ReturnType<typeof normalizeRecipeSet>,
     random: () => number,
 ): Omit<Recipe, "createdAt" | "updatedAt"> {
+  const sweetener = choose(recipeSet.sweetenerSet, random)
+
   return {
     recipeId,
     cupSize: choose(recipeSet.cupSizeSet, random),
@@ -216,8 +239,12 @@ function buildRecipe(
     matcha: choose(recipeSet.matchaSet, random),
     milk: choose(recipeSet.milkSet, random),
     flavor: choose(recipeSet.flavorSet, random),
-    sweetener: choose(recipeSet.sweetenerSet, random),
-    sweetnessLevel: choose(recipeSet.sweetnessLevelSet, random),
+    sweetener,
+    sweetnessLevel: chooseSweetnessLevel(
+        sweetener,
+        recipeSet.sweetnessLevelSet,
+        random,
+    ),
     creamTop: choose(recipeSet.creamTopSet, random),
     powder: choose(recipeSet.powderSet, random),
   }
@@ -229,6 +256,14 @@ async function getOrCreateRecipe(
   const existingRecipe = await RecipeModel.findOne({ recipeId: recipe.recipeId })
 
   if (existingRecipe) {
+    if (
+        existingRecipe.sweetener === "none" &&
+        existingRecipe.sweetnessLevel !== "none"
+    ) {
+      existingRecipe.sweetnessLevel = "none"
+      await existingRecipe.save()
+    }
+
     return existingRecipe
   }
 

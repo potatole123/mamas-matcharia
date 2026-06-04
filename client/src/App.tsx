@@ -32,6 +32,15 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   return user ? children : <Navigate to="/" replace />
 }
 
+function PublicOnlyRoute({ children }: ProtectedRouteProps) {
+  const { loading, user } = useAuth()
+  if (loading) {
+    return null
+  }
+
+  return user ? <Navigate to="/home" replace /> : children
+}
+
 function App() {
   return (
     <GameDayProvider>
@@ -40,9 +49,30 @@ function App() {
           <DrinkProgressProvider>
             <div className="app-shell">
               <Routes>
-                <Route path="/" element={<StartPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/signup" element={<SignupPage />} />
+                <Route
+                  path="/"
+                  element={
+                    <PublicOnlyRoute>
+                      <StartPage />
+                    </PublicOnlyRoute>
+                  }
+                />
+                <Route
+                  path="/login"
+                  element={
+                    <PublicOnlyRoute>
+                      <LoginPage />
+                    </PublicOnlyRoute>
+                  }
+                />
+                <Route
+                  path="/signup"
+                  element={
+                    <PublicOnlyRoute>
+                      <SignupPage />
+                    </PublicOnlyRoute>
+                  }
+                />
                 <Route
                   path="/home"
                   element={

@@ -1,5 +1,6 @@
 import orderTicket from '../assets/station-shared/order-ticket.png'
 import { ORDER_TICKET_FIELDS, type TicketStore } from '../hooks/useOrderTickets'
+import type { Recipe } from '../types/game'
 
 type OrderTicketBoardProps = {
   ticketStore: TicketStore
@@ -7,6 +8,14 @@ type OrderTicketBoardProps = {
   revealedOrderLineCount: number
   onHistoryTicketClick: (orderId: number) => void
   disabled?: boolean
+}
+
+function getTicketFieldValue(recipe: Recipe, fieldKey: keyof Omit<Recipe, 'recipeId'>) {
+  if (fieldKey === 'sweetnessLevel' && recipe.sweetener === 'none') {
+    return 'none'
+  }
+
+  return recipe[fieldKey]
 }
 
 function OrderTicketBoard({
@@ -48,7 +57,7 @@ function OrderTicketBoard({
               {ORDER_TICKET_FIELDS.slice(0, revealedOrderLineCount).map((field) => (
                 <li key={field.key}>
                   <span>{field.label}</span>
-                  <span>{activeMainTicket.recipe[field.key]}</span>
+                  <span>{getTicketFieldValue(activeMainTicket.recipe, field.key)}</span>
                 </li>
               ))}
             </ul>
