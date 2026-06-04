@@ -48,7 +48,7 @@ const WHISKING_STATION_TUTORIAL_MESSAGES: Record<
   'add-matcha':
     'First, click on one of the matcha tins (Regular, Premium, or Ultra) to add 1g of matcha powder to the bowl. The order ticket shows which grade you need. You will need around 3g of matcha powder for a small cup and 4g of matcha for a large cup of matcha.',
   'add-water':
-    'Great! Now click the kettle to pour hot water into the bowl with the matcha powder. Every pour will be 60g of water.',
+    'Great! Now click the kettle to pour hot water into the bowl with the matcha powder. Every pour will be 64g of water.',
   whisk:
     'Perfect! Now click the whisk to blend the matcha and water together until it\'s smooth and frothy.',
   'pour-into-cup':
