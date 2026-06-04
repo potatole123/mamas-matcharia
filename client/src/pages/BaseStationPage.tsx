@@ -167,6 +167,8 @@ function BaseStationPage() {
   const [pitcherAnimPhase, setPitcherAnimPhase] = useState<PitcherAnimPhase>('idle')
   const [activeSweetener, setActiveSweetener] = useState<SweetenerOption | null>(null)
   const [sweetenerAnimPhase, setSweetenerAnimPhase] = useState<SweetenerAnimPhase>('idle')
+  const [activeFlavor, setActiveFlavor] = useState<FlavorOption | null>(null)
+  const [flavorAnimPhase, setFlavorAnimPhase] = useState<FlavorAnimPhase>('idle')
   const pendingTimeoutsRef = useRef<number[]>([])
   const tutorialStepRef = useRef<BaseStationTutorialStep | null>(baseStationStep)
 
@@ -176,7 +178,11 @@ function BaseStationPage() {
   const isSweetenerAnimating = activeSweetener !== null
   const isFlavorAnimating = activeFlavor !== null
   const isStationAnimating =
-    isIceAnimating || isMilkAnimating || isPitcherAnimating || isSweetenerAnimating
+    isIceAnimating ||
+    isMilkAnimating ||
+    isPitcherAnimating ||
+    isSweetenerAnimating ||
+    isFlavorAnimating
   const canAddFlavorAndSweetener = cupHasMilk && !isStationAnimating
   const showReadyButton =
     Boolean(drinkAtBase) &&
@@ -375,7 +381,7 @@ function BaseStationPage() {
   }
 
   function handleFlavorClick(flavorId: FlavorOption) {
-    if (!drinkAtBase || !canAddFlavorAndSweetener || pendingSweetener || selectedFlavor) return
+    if (!drinkAtBase || !canAddFlavorAndSweetener || selectedFlavor) return
     if (activeTutorialStep && activeTutorialStep !== 'complete') {
       if (
         activeTutorialStep !== 'review-flavor' ||
