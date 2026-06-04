@@ -45,7 +45,7 @@ function StationDock({ currentStation, disabled = false }: StationDockProps) {
   const navigate = useNavigate()
   const { getIdToken } = useAuth()
   const { resetDay } = useGameDayContext()
-  const { resetOrderTickets } = useOrderTicketsContext()
+  const { resetTickets } = useOrderTicketsContext()
   const { resetAllStationProgress } = useDrinkProgress()
   const [isExiting, setIsExiting] = useState(false)
 
@@ -68,7 +68,7 @@ function StationDock({ currentStation, disabled = false }: StationDockProps) {
         token,
       })
       resetDay()
-      resetOrderTickets()
+      resetTickets()
       resetAllStationProgress()
       navigate('/home', { replace: true })
     } catch (error) {
