@@ -1703,14 +1703,6 @@ export const leaveMultiplayerGame: RequestHandler = async (req, res) => {
       return res.sendStatus(204)
     }
 
-    if (game.startedAt) {
-      session.activeGame = null
-      session.activeGameModel = null
-      session.activeLevel = null
-      await session.save()
-      return res.sendStatus(204)
-    }
-
     if (game.creatorId === userId) {
       const affectedUserIds = Array.from(new Set([game.creatorId, ...game.playerIds]))
 
@@ -1719,6 +1711,14 @@ export const leaveMultiplayerGame: RequestHandler = async (req, res) => {
         clearActiveMultiplayerSessions(game._id, affectedUserIds),
       ])
 
+      return res.sendStatus(204)
+    }
+
+    if (game.startedAt) {
+      session.activeGame = null
+      session.activeGameModel = null
+      session.activeLevel = null
+      await session.save()
       return res.sendStatus(204)
     }
 

@@ -66,11 +66,11 @@ async function deleteActiveGame(
     return
   }
 
-  if (game.startedAt) {
-    return
-  }
-
   if (game.creatorId !== userId) {
+    if (game.startedAt) {
+      return
+    }
+
     await MultiplayerGameStateModel.updateOne(
       { _id: game._id },
       {
