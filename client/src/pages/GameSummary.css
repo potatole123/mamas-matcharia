@@ -88,6 +88,59 @@
   font-weight: 800;
 }
 
+.game-summary-multiplayer {
+  margin: 0 auto 1.4rem;
+  max-width: 30rem;
+}
+
+.game-summary-multiplayer h2 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.35rem, 3vw, 1.9rem);
+}
+
+.game-summary-ranking-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.game-summary-ranking-row {
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr) 5.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  border: 0.14rem solid rgb(79 37 20 / 22%);
+  border-radius: 0.55rem;
+  background: rgb(255 255 255 / 38%);
+  font-weight: 900;
+  text-align: left;
+}
+
+.game-summary-ranking-row.is-current-player {
+  border-color: rgb(79 37 20 / 70%);
+  background: rgb(143 191 104 / 20%);
+}
+
+.game-summary-rank,
+.game-summary-player-score {
+  text-align: center;
+}
+
+.game-summary-player-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.game-summary-winner {
+  margin: 1rem 0 0;
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  font-weight: 1000;
+}
+
 .game-summary-actions {
   display: flex;
   flex-wrap: wrap;

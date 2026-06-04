@@ -1,4 +1,5 @@
 import { API_BASE_URL, Fetch } from '../Fetch'
+import type { DayScorePayload } from '../scoring/aggregateDayScore'
 
 export const MIN_MULTIPLAYER_PLAYERS = 2
 export const MAX_MULTIPLAYER_PLAYERS = 4
@@ -27,6 +28,37 @@ export type MultiplayerRoom = {
   minPlayers: number
   maxPlayers: number
   canStart: boolean
+}
+
+export type MultiplayerPlayerResult = {
+  playerId: string
+  displayName: string
+  submitted: boolean
+  rank: number | null
+  isWinner: boolean
+  result: (DayScorePayload & {
+    playerId?: string
+    playerDisplayName?: string
+    level: number
+    passed: boolean
+    completedAt: string
+  }) | null
+}
+
+export type MultiplayerResults = {
+  gameId: string
+  groupCode: string
+  creatorId: string
+  playerCount: number
+  submittedCount: number
+  allSubmitted: boolean
+  startedAt: string | null
+  ranking: string[]
+  players: MultiplayerPlayerResult[]
+}
+
+export type MultiplayerResultsResponse = {
+  results: MultiplayerResults
 }
 
 type GameplaySessionResponse = {
@@ -110,4 +142,10 @@ export async function getCurrentMultiplayerRoom(token: string) {
   }
 
   return session.activeGame ? toMultiplayerRoom(session.activeGame) : null
+}
+
+export async function getCurrentMultiplayerResults(token: string) {
+  return Fetch<MultiplayerResultsResponse>('/api/game/multiplayer/current/results', {
+    token,
+  })
 }

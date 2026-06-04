@@ -5,6 +5,7 @@ import {
   createSinglePlayerGame,
   deleteMultiplayerGame,
   deleteSinglePlayerGame,
+  getCurrentMultiplayerResults,
   joinMultiplayerGame,
   leaveMultiplayerGame,
   startGameDay,
@@ -19,6 +20,7 @@ router.delete("/singleplayer/current", authenticate, deleteSinglePlayerGame)
 router.post("/multiplayer", authenticate, createMultiplayerGame)
 router.post("/multiplayer/join", authenticate, joinMultiplayerGame)
 router.post("/multiplayer/current/start", authenticate, startMultiplayerGame)
+router.get("/multiplayer/current/results", authenticate, getCurrentMultiplayerResults)
 router.delete("/multiplayer/current/player", authenticate, leaveMultiplayerGame)
 router.delete("/multiplayer/current", authenticate, deleteMultiplayerGame)
 router.post("/day/start", authenticate, startGameDay)

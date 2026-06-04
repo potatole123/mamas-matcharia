@@ -1,6 +1,8 @@
 import { Schema } from "mongoose";
 
 export interface DayResults {
+  playerId?: string;
+  playerDisplayName?: string;
   level: number;
   waitingScore: number;
   accuracyScore: number;
@@ -14,6 +16,16 @@ export interface DayResults {
 
 export const dayResultsSchema = new Schema<DayResults>(
   {
+    playerId: {
+      type: String,
+      trim: true,
+    },
+
+    playerDisplayName: {
+      type: String,
+      trim: true,
+    },
+
     level: {
       type: Number,
       required: true,
