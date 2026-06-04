@@ -87,6 +87,21 @@ export function useOrderTickets() {
     setRevealedOrderLineCount(ORDER_TICKET_FIELDS.length)
   }, [])
 
+  const consumeTicket = useCallback((orderId: number) => {
+    setTicketStore((currentStore) => {
+      const isMainTicketConsumed = currentStore.mainTicket?.orderId === orderId
+
+      return {
+        mainTicket: isMainTicketConsumed ? null : currentStore.mainTicket,
+        completedTickets: currentStore.completedTickets.filter(
+          (ticket) => ticket.orderId !== orderId,
+        ),
+      }
+    })
+    setShowOrderTicketText(false)
+    setRevealedOrderLineCount(0)
+  }, [])
+
   return {
     ticketStore,
     showOrderTicketText,
@@ -96,5 +111,6 @@ export function useOrderTickets() {
     revealNextLine,
     markOrderFullyRevealed,
     swapMainWithHistory,
+    consumeTicket,
   }
 }

@@ -457,6 +457,65 @@
   animation: serve-customer-drink-taste 2.6s ease-in-out 1s both;
 }
 
+.serve-customer-page .serve-customer-score-card {
+  position: absolute;
+  top: 9%;
+  left: 6%;
+  z-index: 6;
+  width: 24%;
+  box-sizing: border-box;
+  padding: 1.1% 1.5%;
+  border: 0.18rem solid rgb(79 37 20 / 88%);
+  border-radius: 0.9rem;
+  background: rgb(255 248 232 / 92%);
+  box-shadow: 0 0.65rem 1.35rem rgb(79 37 20 / 22%);
+  color: #4f2514;
+  opacity: 0;
+  transform: translateY(0.8rem);
+  animation: serve-customer-score-reveal 260ms ease-out 3.6s forwards;
+}
+
+.serve-customer-score-card__eyebrow {
+  margin: 0 0 0.25rem;
+  font-size: clamp(0.58rem, 0.78vw, 0.8rem);
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.serve-customer-score-card__title {
+  margin: 0 0 0.65rem;
+  font-size: clamp(1.25rem, 2.2vw, 2rem);
+  line-height: 1;
+}
+
+.serve-customer-score-card__list {
+  display: grid;
+  gap: 0.28rem;
+  margin: 0;
+}
+
+.serve-customer-score-card__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: clamp(0.72rem, 1vw, 0.98rem);
+  font-weight: 800;
+}
+
+.serve-customer-score-card__row dt,
+.serve-customer-score-card__row dd {
+  margin: 0;
+}
+
+.serve-customer-score-card__row.is-total {
+  margin-top: 0.25rem;
+  padding-top: 0.35rem;
+  border-top: 0.12rem solid rgb(79 37 20 / 38%);
+  font-size: clamp(0.9rem, 1.25vw, 1.2rem);
+  font-weight: 1000;
+}
+
 @keyframes serve-customer-drink-taste {
   0% {
     right: 30%;
@@ -473,6 +532,13 @@
   100% {
     right: 30%;
     bottom: 20%;
+  }
+}
+
+@keyframes serve-customer-score-reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

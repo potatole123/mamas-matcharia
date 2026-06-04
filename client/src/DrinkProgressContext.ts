@@ -2,6 +2,7 @@ import { createContext, useContext } from 'react'
 import type { BaseCupSnapshot } from './drinkCup'
 import type {
   DrinkOrderSubmission,
+  OrderScoreResult,
   ScoredDrinkOrderSubmission,
 } from './types/drinkSubmission'
 import type { TicketData } from './hooks/useOrderTickets'
@@ -49,10 +50,11 @@ export type DrinkProgressContextValue = {
   /** Served drinks paired with tickets (for scoring / day aggregation). */
   orderSubmissions: DrinkOrderSubmission[]
   scoredOrderSubmissions: ScoredDrinkOrderSubmission[]
+  orderScoresByOrderId: Record<number, OrderScoreResult>
   lastOrderSubmission: DrinkOrderSubmission | null
   /**
    * Finish topping: build submission from drink + ticket, mark served, sync game day.
-   * Returns the payload for scoreDrinkOrder; optional score is stored when non-null.
+   * Returns the payload for scoreDrinkOrder; score is stored with the submission.
    */
   submitDrinkWithOrder: (ticket: TicketData) => DrinkOrderSubmission | null
   clearToppingCup: () => void

@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import type { BaseCupSnapshot } from './drinkCup'
 import { DrinkProgressContext, type StationSlot } from './DrinkProgressContext'
 import { useGameDayContext } from './GameDayContext'
-import { useOrderTicketsContext } from './OrderTicketsContext'
 import { scoreDrinkOrder } from './scoring/scoreDrinkOrder'
 import type {
   DrinkOrderSubmission,
+  OrderScoreResult,
   ScoredDrinkOrderSubmission,
 } from './types/drinkSubmission'
 import type { TicketData } from './hooks/useOrderTickets'
@@ -27,8 +27,7 @@ type StationSlots = Record<StationSlot, string | null>
 const EMPTY_SLOTS: StationSlots = { base: null, whisking: null, topping: null }
 
 export function DrinkProgressProvider({ children }: { children: ReactNode }) {
-  const { ticketStore } = useOrderTicketsContext()
-  const { updateDrink: updateGameDayDrink, completeDrink } = useGameDayContext()
+  const { drinksByOrderId, updateDrink: updateGameDayDrink } = useGameDayContext()
   const [drinks, setDrinks] = useState<Record<string, InProgressDrink>>({})
   const [orderSubmissions, setOrderSubmissions] = useState<DrinkOrderSubmission[]>([])
   const [scoredOrderSubmissions, setScoredOrderSubmissions] = useState<ScoredDrinkOrderSubmission[]>(
@@ -135,14 +134,13 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
         return drinks[stationSlots.base] ?? null
       }
 
-      const orderId = ticketStore.mainTicket?.orderId ?? null
-      const drink = createInProgressDrink(cupSize, orderId)
+      const drink = createInProgressDrink(cupSize)
 
       setDrinks((prev) => ({ ...prev, [drink.id]: drink }))
       setStationSlots((prev) => ({ ...prev, base: drink.id }))
       return drink
     },
-    [drinks, stationSlots.base, ticketStore.mainTicket?.orderId],
+    [drinks, stationSlots.base],
   )
 
   const linkDrinkToOrder = useCallback(
@@ -154,14 +152,6 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
 
   const activePipelineDrink = drinkAtBase ?? drinkAtWhisking ?? drinkAtTopping ?? null
   const canCreateDrinkAtBase = drinkAtBase === null
-
-  useEffect(() => {
-    const orderId = ticketStore.mainTicket?.orderId
-    if (orderId === undefined || !activePipelineDrink || activePipelineDrink.orderId !== null) {
-      return
-    }
-    updateDrink(activePipelineDrink.id, { orderId })
-  }, [activePipelineDrink, ticketStore.mainTicket?.orderId, updateDrink])
 
   const resetAllStationProgress = useCallback(() => {
     setDrinks({})
@@ -193,6 +183,13 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
 
   const whiskingCup = drinkAtWhisking?.cupVisual ?? null
   const toppingCup = drinkAtTopping?.cupVisual ?? null
+  const orderScoresByOrderId = useMemo(() => {
+    const scores: Record<number, OrderScoreResult> = {}
+    for (const submission of scoredOrderSubmissions) {
+      scores[submission.orderId] = submission.score
+    }
+    return scores
+  }, [scoredOrderSubmissions])
 
   const sendCupToWhisking = useCallback(
     (cup: BaseCupSnapshot) => {
@@ -270,7 +267,19 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
       }
 
       const submission = createDrinkOrderSubmission(drinkAtTopping, ticket)
-      const score = scoreDrinkOrder(submission)
+      const gameDayDrink = drinksByOrderId[submission.orderId]
+      const orderCreatedAt = gameDayDrink ? new Date(gameDayDrink.startTime) : undefined
+      const servedAt = new Date(submission.servedAt)
+      const score = scoreDrinkOrder(
+        submission,
+        orderCreatedAt
+          ? {
+              orderCreatedAt,
+              expirationTime: new Date(orderCreatedAt.getTime() + 30_000),
+              servedAt,
+            }
+          : undefined,
+      )
 
       setOrderSubmissions((prev) => [...prev, submission])
       setLastOrderSubmission(submission)
@@ -280,8 +289,10 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
       }
 
       if (submission.orderId) {
-        updateGameDayDrink(submission.orderId, { recipe: submission.madeRecipe })
-        completeDrink(submission.orderId)
+        updateGameDayDrink(submission.orderId, {
+          recipe: submission.madeRecipe,
+          endTime: submission.servedAt,
+        })
       }
 
       setDrinks((prev) => ({
@@ -292,7 +303,7 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
 
       return submission
     },
-    [completeDrink, drinkAtTopping, updateGameDayDrink],
+    [drinkAtTopping, drinksByOrderId, updateGameDayDrink],
   )
 
   const value = useMemo(
@@ -317,6 +328,7 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
       sendCupToTopping,
       orderSubmissions,
       scoredOrderSubmissions,
+      orderScoresByOrderId,
       lastOrderSubmission,
       submitDrinkWithOrder,
       clearToppingCup,
@@ -343,12 +355,12 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
       drinkAtWhisking,
       drinks,
       linkDrinkToOrder,
-      moveDrinkToStation,
       resetAllStationProgress,
       sendCupToTopping,
       sendCupToWhisking,
       submitDrinkWithOrder,
       orderSubmissions,
+      orderScoresByOrderId,
       scoredOrderSubmissions,
       lastOrderSubmission,
       toppingCup,

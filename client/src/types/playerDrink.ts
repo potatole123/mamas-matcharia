@@ -46,10 +46,10 @@ export function createDrinkId() {
   return `drink-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
-export function createInProgressDrink(cupSize: 'small' | 'large', orderId: number | null): InProgressDrink {
+export function createInProgressDrink(cupSize: 'small' | 'large'): InProgressDrink {
   return {
     id: createDrinkId(),
-    orderId,
+    orderId: null,
     status: 'in_progress',
     station: 'base',
     recipe: {
