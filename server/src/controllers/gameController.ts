@@ -3,7 +3,7 @@ import { SessionModel } from "../models/session"
 import { SinglePlayerGameStateModel } from "../models/singlePlayerGameState"
 import type { RequestHandler } from "express"
 import { MultiplayerGameStateModel } from "../models/multiplayerGameState"
-import type { HydratedDocument } from "mongoose"
+import type { HydratedDocument, Types } from "mongoose"
 import {
   buildFullRecipeSet,
   buildRecipeSetForUnlockedLevel,
@@ -26,11 +26,13 @@ import {
   SWEETENER,
   SWEETNESS_LEVEL,
   TEMP,
+  type Status,
 } from "../types/enums"
 
 const JOIN_CODE_PATTERN = /^\d{6}$/
 const MAX_GROUP_CODE_ATTEMPTS = 10
-const MAX_MULTIPLAYER_PLAYERS = 6
+const MIN_MULTIPLAYER_PLAYERS = 2
+const MAX_MULTIPLAYER_PLAYERS = 4
 const MAX_RANDOM_SEED = 123_456_789
 const MAX_NPC_COUNT = 20
 const ORDER_EXPIRATION_SECONDS = 90
@@ -191,6 +193,16 @@ function choose<T>(values: readonly T[], random: () => number) {
   return values[Math.floor(random() * values.length)] as T
 }
 
+function hashStringToNumber(value: string) {
+  let hash = 0
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0
+  }
+
+  return hash
+}
+
 function buildRecipe(
     recipeId: string,
     recipeSet: ReturnType<typeof normalizeRecipeSet>,
@@ -211,6 +223,89 @@ function buildRecipe(
   }
 }
 
+async function getOrCreateRecipe(
+    recipe: Omit<Recipe, "createdAt" | "updatedAt">,
+) {
+  const existingRecipe = await RecipeModel.findOne({ recipeId: recipe.recipeId })
+
+  if (existingRecipe) {
+    return existingRecipe
+  }
+
+  try {
+    return await RecipeModel.create(recipe)
+  } catch (err) {
+    if (getErrorCode(err) === 11000) {
+      const createdRecipe = await RecipeModel.findOne({ recipeId: recipe.recipeId })
+
+      if (createdRecipe) {
+        return createdRecipe
+      }
+    }
+
+    throw err
+  }
+}
+
+async function getOrCreateCustomerOrder(
+    order: {
+      orderId: number
+      recipe: Types.ObjectId
+      expirationTime: Date
+      status: Status
+    },
+) {
+  const existingOrder = await CustomerOrderModel.findOne({
+    orderId: order.orderId,
+  })
+
+  if (existingOrder) {
+    return existingOrder
+  }
+
+  try {
+    return await CustomerOrderModel.create(order)
+  } catch (err) {
+    if (getErrorCode(err) === 11000) {
+      const createdOrder = await CustomerOrderModel.findOne({
+        orderId: order.orderId,
+      })
+
+      if (createdOrder) {
+        return createdOrder
+      }
+    }
+
+    throw err
+  }
+}
+
+async function getOrCreateNpc(npc: {
+  npcId: number
+  order: Types.ObjectId
+  enterTime: Date
+}) {
+  const existingNpc = await NPCModel.findOne({ npcId: npc.npcId })
+
+  if (existingNpc) {
+    return existingNpc
+  }
+
+  try {
+    return await NPCModel.create(npc)
+  } catch (err) {
+    if (getErrorCode(err) === 11000) {
+      const createdNpc = await NPCModel.findOne({ npcId: npc.npcId })
+
+      if (createdNpc) {
+        return createdNpc
+      }
+    }
+
+    throw err
+  }
+}
+
 async function createDayNpcs(
     activeGameId: string,
     level: number,
@@ -219,27 +314,27 @@ async function createDayNpcs(
 ) {
   const random = makeSeededRandom(seed)
   const recipeSet = normalizeRecipeSet(config.recipeSet)
-  const batchId = `${activeGameId}-${level}-${Date.now()}`
-  const baseNumberId = Date.now() * 1000 + Math.abs(seed % 1000)
-  const now = Date.now()
+  const batchId = `${activeGameId}-${level}`
+  const baseNumberId = hashStringToNumber(batchId) * 100 + level * 10_000
+  const baseTime = new Date(Date.UTC(2026, 0, 1, level, 0, 0))
   const npcs = []
 
   for (let index = 0; index < config.npcCount; index += 1) {
     const numberId = baseNumberId + index
-    const enterTime = new Date(now)
+    const enterTime = new Date(baseTime)
     const expirationTime = new Date(
         enterTime.getTime() + ORDER_EXPIRATION_SECONDS * 1000,
     )
-    const recipe = await RecipeModel.create(
+    const recipe = await getOrCreateRecipe(
         buildRecipe(`game-${batchId}-recipe-${index + 1}`, recipeSet, random),
     )
-    const order = await CustomerOrderModel.create({
+    const order = await getOrCreateCustomerOrder({
       orderId: numberId,
       recipe: recipe._id,
       expirationTime,
       status: "waiting",
     })
-    const npc = await NPCModel.create({
+    const npc = await getOrCreateNpc({
       npcId: numberId,
       order: order._id,
       enterTime,
@@ -450,6 +545,7 @@ function serializeMultiplayerGame(game: {
   groupCode: string
   ranking: string[]
   npcSeed: number
+  startedAt?: Date | null
   createdAt: Date
   updatedAt: Date
 }) {
@@ -462,6 +558,7 @@ function serializeMultiplayerGame(game: {
     groupCode: game.groupCode,
     ranking: game.ranking,
     npcSeed: game.npcSeed,
+    startedAt: game.startedAt ?? null,
     createdAt: game.createdAt,
     updatedAt: game.updatedAt,
   }
@@ -500,10 +597,52 @@ async function getActiveGameInfo(session: {
       gameId: String(game._id),
       mode: "multiplayer",
       npcSeed: game.npcSeed,
+      startedAt: game.startedAt ?? null,
     }
   }
 
   return null
+}
+
+async function clearSessionActiveGame(session: {
+  set: (values: Record<string, unknown>) => unknown
+  save: () => Promise<unknown>
+}) {
+  session.set({
+    activeGame: null,
+    activeGameModel: null,
+    activeLevel: null,
+  })
+  await session.save()
+}
+
+async function clearActiveMultiplayerSessions(gameId: unknown, userIds: string[]) {
+  if (userIds.length === 0) {
+    return
+  }
+
+  const affectedProfiles = await ProfileModel.find({
+    userId: {
+      $in: userIds,
+    },
+  }).select("_id")
+
+  await SessionModel.updateMany(
+      {
+        profile: {
+          $in: affectedProfiles.map((affectedProfile) => affectedProfile._id),
+        },
+        activeGame: gameId as Types.ObjectId,
+        activeGameModel: "MultiplayerGameState",
+      },
+      {
+        $set: {
+          activeGame: null,
+          activeGameModel: null,
+          activeLevel: null,
+        },
+      },
+  )
 }
 
 async function appendDayResult(
@@ -679,6 +818,12 @@ export const startGameDay: RequestHandler = async (req, res) => {
     if (activeGame.mode === "singleplayer" && level > profile.highestDayUnlocked) {
       return res.status(403).json({
         error: "Level is locked",
+      })
+    }
+
+    if (activeGame.mode === "multiplayer" && !activeGame.startedAt) {
+      return res.status(409).json({
+        error: "Multiplayer game has not started",
       })
     }
 
@@ -862,9 +1007,31 @@ export const createMultiplayerGame: RequestHandler = async (req, res) => {
     let session = await SessionModel.findOne({ profile: profile._id })
 
     if (session?.activeGame) {
-      return res.status(409).json({
-        error: "User already has an active game",
-      })
+      if (session.activeGameModel === "MultiplayerGameState") {
+        const existingGame = await MultiplayerGameStateModel.findById(
+            session.activeGame,
+        )
+
+        if (existingGame) {
+          if (!existingGame.playerIds.includes(userId)) {
+            await clearSessionActiveGame(session)
+          } else {
+            return res.status(200).json({
+              game: serializeMultiplayerGame(existingGame),
+              session: serializeSession(session),
+            })
+          }
+        } else {
+          await clearSessionActiveGame(session)
+        }
+      } else if (session.activeGameModel === "SinglePlayerGameState") {
+        await SinglePlayerGameStateModel.deleteOne({
+          _id: session.activeGame,
+        })
+        await clearSessionActiveGame(session)
+      } else {
+        await clearSessionActiveGame(session)
+      }
     }
 
     if (!session) {
@@ -959,9 +1126,37 @@ export const joinMultiplayerGame: RequestHandler = async (req, res) => {
           hasSameObjectId(session.activeGame, game._id)
 
       if (!alreadyInThisGame) {
-        return res.status(409).json({
-          error: "User already has an active game",
-        })
+        if (session.activeGameModel === "SinglePlayerGameState") {
+          await SinglePlayerGameStateModel.deleteOne({
+            _id: session.activeGame,
+          })
+          await clearSessionActiveGame(session)
+        } else if (session.activeGameModel === "MultiplayerGameState") {
+          const activeGame = await MultiplayerGameStateModel.findById(
+              session.activeGame,
+          )
+
+          if (activeGame && activeGame.playerIds.includes(userId)) {
+            return res.status(409).json({
+              error: "User already has an active game",
+            })
+          }
+
+          if (activeGame) {
+            await MultiplayerGameStateModel.updateOne(
+                { _id: activeGame._id },
+                {
+                  $pull: {
+                    playerIds: userId,
+                  },
+                },
+            )
+          }
+
+          await clearSessionActiveGame(session)
+        } else {
+          await clearSessionActiveGame(session)
+        }
       }
     }
 
@@ -1012,6 +1207,75 @@ export const joinMultiplayerGame: RequestHandler = async (req, res) => {
   }
 }
 
+export const startMultiplayerGame: RequestHandler = async (req, res) => {
+  const userId = req.user?.uid
+
+  if (!userId) {
+    return res.status(401).json({
+      error: "Unauthorized",
+    })
+  }
+
+  try {
+    const profile = await ProfileModel.findOne({ userId })
+
+    if (!profile) {
+      return res.status(404).json({
+        error: "User profile was not found",
+      })
+    }
+
+    const session = await SessionModel.findOne({ profile: profile._id })
+
+    if (
+        !session?.activeGame ||
+        session.activeGameModel !== "MultiplayerGameState"
+    ) {
+      return res.status(409).json({
+        error: "User does not have an active multiplayer game",
+      })
+    }
+
+    const game = await MultiplayerGameStateModel.findById(session.activeGame)
+
+    if (!game) {
+      return res.status(404).json({
+        error: "Multiplayer game was not found",
+      })
+    }
+
+    if (game.creatorId !== userId) {
+      return res.status(403).json({
+        error: "Only the room creator can start the game",
+      })
+    }
+
+    if (
+        game.playerIds.length < MIN_MULTIPLAYER_PLAYERS ||
+        game.playerIds.length > MAX_MULTIPLAYER_PLAYERS
+    ) {
+      return res.status(409).json({
+        error: `Multiplayer game requires ${MIN_MULTIPLAYER_PLAYERS}-${MAX_MULTIPLAYER_PLAYERS} players`,
+      })
+    }
+
+    if (!game.startedAt) {
+      game.startedAt = new Date()
+      await game.save()
+    }
+
+    return res.status(200).json({
+      game: serializeMultiplayerGame(game),
+      session: serializeSession(session),
+    })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({
+      error: "Could not start multiplayer game",
+    })
+  }
+}
+
 export const deleteMultiplayerGame: RequestHandler = async (req, res) => {
   const userId = req.user?.uid
 
@@ -1053,26 +1317,11 @@ export const deleteMultiplayerGame: RequestHandler = async (req, res) => {
       return res.sendStatus(204)
     }
 
-    const affectedUserIds = Array.from(
-        new Set([game.creatorId, ...game.playerIds]),
-    )
-    const affectedProfiles = await ProfileModel.find({
-      userId: {
-        $in: affectedUserIds,
-      },
-    }).select("_id")
+    const affectedUserIds = Array.from(new Set([game.creatorId, ...game.playerIds]))
 
     await Promise.all([
       MultiplayerGameStateModel.deleteOne({ _id: game._id }),
-      SessionModel.deleteMany(
-          {
-            profile: {
-              $in: affectedProfiles.map((affectedProfile) => affectedProfile._id),
-            },
-            activeGame: game._id,
-            activeGameModel: "MultiplayerGameState",
-          },
-      ),
+      clearActiveMultiplayerSessions(game._id, affectedUserIds),
     ])
     return res.sendStatus(204)
   } catch (err) {
@@ -1084,6 +1333,84 @@ export const deleteMultiplayerGame: RequestHandler = async (req, res) => {
     console.error(err)
     return res.status(500).json({
       error: "Could not delete multiplayer game",
+    })
+  }
+}
+
+export const leaveMultiplayerGame: RequestHandler = async (req, res) => {
+  const userId = req.user?.uid
+
+  if (!userId) {
+    return res.status(401).json({
+      error: "Unauthorized",
+    })
+  }
+
+  try {
+    const profile = await ProfileModel.findOne({ userId })
+
+    if (!profile) {
+      return res.status(404).json({
+        error: "User profile was not found",
+      })
+    }
+
+    const session = await SessionModel.findOne({ profile: profile._id })
+
+    if (
+        !session?.activeGame ||
+        session.activeGameModel !== "MultiplayerGameState"
+    ) {
+      return res.sendStatus(204)
+    }
+
+    const game = await MultiplayerGameStateModel.findById(session.activeGame)
+
+    if (!game) {
+      session.activeGame = null
+      session.activeGameModel = null
+      session.activeLevel = null
+      await session.save()
+      return res.sendStatus(204)
+    }
+
+    if (game.creatorId === userId) {
+      const affectedUserIds = Array.from(new Set([game.creatorId, ...game.playerIds]))
+
+      await Promise.all([
+        MultiplayerGameStateModel.deleteOne({ _id: game._id }),
+        clearActiveMultiplayerSessions(game._id, affectedUserIds),
+      ])
+
+      return res.sendStatus(204)
+    }
+
+    await Promise.all([
+      MultiplayerGameStateModel.updateOne(
+          { _id: game._id },
+          {
+            $pull: {
+              playerIds: userId,
+            },
+          },
+      ),
+      SessionModel.updateOne(
+          { _id: session._id },
+          {
+            $set: {
+              activeGame: null,
+              activeGameModel: null,
+              activeLevel: null,
+            },
+          },
+      ),
+    ])
+
+    return res.sendStatus(204)
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({
+      error: "Could not leave multiplayer game",
     })
   }
 }

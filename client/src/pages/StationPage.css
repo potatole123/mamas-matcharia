@@ -1273,21 +1273,113 @@
   top: 77%;
 }
 
-.waiting-room-count {
+.waiting-room-panel {
   position: absolute;
   left: 50%;
   top: 40%;
   transform: translateX(-50%);
-  margin: 0;
-  padding: 0.5rem 1rem;
-  font-size: clamp(1.5rem, 2.5vw, 2rem);
-  font-weight: 600;
-  font-family: 'Slate Black';
-  color: #437633;
-  /* background: rgba(255, 255, 255, 0.85); */
+  display: grid;
+  gap: 0.5rem;
+  min-width: min(74%, 420px);
+  padding: 1rem 1.25rem;
+  font-family: inherit;
   background-color: antiquewhite;
   border-radius: 0.5rem;
   z-index: 1;
+  text-align: center;
+}
+
+.waiting-room-code,
+.waiting-room-count,
+.waiting-room-error {
+  margin: 0;
+}
+
+.waiting-room-code {
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  font-weight: 700;
+  color: #3d2412;
+}
+
+.waiting-room-count {
+  font-size: clamp(1.2rem, 2vw, 1.65rem);
+  font-weight: 600;
+  color: #437633;
+}
+
+.waiting-room-bears {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(0.45rem, 1.2vw, 0.9rem);
+  align-items: end;
+  width: min(100%, 480px);
+  justify-self: center;
+  padding: 0.25rem 0 0.35rem;
+}
+
+.waiting-room-bear-slot {
+  position: relative;
+  display: grid;
+  height: clamp(110px, 17vw, 170px);
+  place-items: end center;
+  overflow: visible;
+}
+
+.waiting-room-bear-slot img {
+  width: 100%;
+  max-width: 104px;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  opacity: 0.18;
+  filter: grayscale(1) brightness(0.2) sepia(0.35) saturate(1.4) hue-rotate(32deg);
+}
+
+.waiting-room-bear-slot::after {
+  content: none;
+}
+
+.waiting-room-bear-slot.is-filled img {
+  opacity: 1;
+  filter: drop-shadow(0 0.25rem 0 rgb(61 36 18 / 0.22));
+}
+
+.waiting-room-error {
+  color: #9f2420;
+  font-size: clamp(0.85rem, 1.4vw, 1rem);
+  font-weight: 700;
+}
+
+.waiting-room-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.waiting-room-action {
+  justify-self: center;
+  min-width: min(78%, 180px);
+  min-height: clamp(34px, 4vw, 44px);
+  border: clamp(2px, 0.25vw, 4px) solid #6d4023;
+  border-radius: 8px;
+  padding: 0 1rem;
+  cursor: pointer;
+  background: #dd6f31;
+  color: #fff9e8;
+  font: inherit;
+  font-size: clamp(0.95rem, 1.6vw, 1.2rem);
+  font-weight: 800;
+}
+
+.waiting-room-exit-action {
+  background: #fffaf0;
+  color: #3d2412;
+}
+
+.waiting-room-action:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .station-day-error {

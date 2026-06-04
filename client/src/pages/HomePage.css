@@ -74,6 +74,11 @@
   border-radius: 999px;
 }
 
+.home-image-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .home-logout-button {
   top: 3.1%;
   right: 3.2%;
@@ -125,6 +130,23 @@
 
 .home-join-multiplayer-button {
   top: 84.9%;
+}
+
+.home-error {
+  position: absolute;
+  left: 50%;
+  top: 94%;
+  z-index: 3;
+  max-width: min(72%, 520px);
+  margin: 0;
+  padding: 0.45rem 0.75rem;
+  transform: translateX(-50%);
+  border: 3px solid #6d4023;
+  border-radius: 8px;
+  background: #fff3cf;
+  color: #9f2420;
+  font-weight: 800;
+  text-align: center;
 }
 
 @media (max-aspect-ratio: 6844 / 5100) {

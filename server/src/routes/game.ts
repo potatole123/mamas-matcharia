@@ -6,7 +6,9 @@ import {
   deleteMultiplayerGame,
   deleteSinglePlayerGame,
   joinMultiplayerGame,
+  leaveMultiplayerGame,
   startGameDay,
+  startMultiplayerGame,
   submitGameResults,
 } from "../controllers/gameController"
 
@@ -16,6 +18,8 @@ router.post("/singleplayer", authenticate, createSinglePlayerGame)
 router.delete("/singleplayer/current", authenticate, deleteSinglePlayerGame)
 router.post("/multiplayer", authenticate, createMultiplayerGame)
 router.post("/multiplayer/join", authenticate, joinMultiplayerGame)
+router.post("/multiplayer/current/start", authenticate, startMultiplayerGame)
+router.delete("/multiplayer/current/player", authenticate, leaveMultiplayerGame)
 router.delete("/multiplayer/current", authenticate, deleteMultiplayerGame)
 router.post("/day/start", authenticate, startGameDay)
 router.post("/results", authenticate, submitGameResults)

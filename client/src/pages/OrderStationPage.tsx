@@ -108,8 +108,9 @@ function OrderStationPage() {
   }, [startDay])
 
   useEffect(() => {
-    tutorialStepRef.current = orderStationStep
-  }, [orderStationStep])
+    tutorialStepRef.current =
+      dayState?.day.mode && dayState.day.mode !== 'multiplayer' ? orderStationStep : null
+  }, [dayState?.day.mode, orderStationStep])
 
   useEffect(() => {
     if (!dayState || !consumeLevelBanner()) {
@@ -240,23 +241,25 @@ function OrderStationPage() {
     width: `${customerBearWidthPct}%`,
     ['--order-bear-transition-ms' as string]: `${bearTransitionMs}ms`,
   }
-  const isWelcomeTutorialStep = orderStationStep === 'welcome'
+  const activeTutorialStep =
+    dayState?.day.mode && dayState.day.mode !== 'multiplayer' ? orderStationStep : null
+  const isWelcomeTutorialStep = activeTutorialStep === 'welcome'
   const isInteractionLocked = phase !== 'idle' || activeNpc !== null || isWelcomeTutorialStep
   const shouldRenderCustomer = activeNpc !== null || waitingNpcs.length > 0
   const tutorialMessage =
-    orderStationStep && orderStationStep !== 'complete'
-      ? ORDER_STATION_TUTORIAL_MESSAGES[orderStationStep]
+    activeTutorialStep && activeTutorialStep !== 'complete'
+      ? ORDER_STATION_TUTORIAL_MESSAGES[activeTutorialStep]
       : null
   const shouldShowTutorialContinue =
-    orderStationStep === 'welcome' || orderStationStep === 'order-ticket'
+    activeTutorialStep === 'welcome' || activeTutorialStep === 'order-ticket'
 
   const handleStageClick = (event: MouseEvent<HTMLElement>) => {
-    if (orderStationStep === 'welcome') {
+    if (activeTutorialStep === 'welcome') {
       setOrderStationStep('take-order')
       return
     }
 
-    if (orderStationStep === 'order-ticket') {
+    if (activeTutorialStep === 'order-ticket') {
       setOrderStationStep('complete')
       return
     }
@@ -299,7 +302,7 @@ function OrderStationPage() {
 
     claimWaitingNpc(nextNpc.npcId)
     setActiveNpc(nextNpc)
-    if (orderStationStep === 'take-order') {
+    if (activeTutorialStep === 'take-order') {
       setOrderStationStep('customer-talking')
     }
   }
