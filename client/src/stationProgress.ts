@@ -21,6 +21,8 @@ export type BowlMatchaLevel = 'empty' | '1' | '2' | '3' | '4' | '5' | '6'
 
 export type MatchaTin = 1 | 2 | 3
 
+export const WHISK_DURATION_MS = 10_000
+
 export type WhiskingStationState = {
   bowlMatchaLevel: BowlMatchaLevel
   bowlHasWater: boolean
@@ -28,6 +30,8 @@ export type WhiskingStationState = {
   totalWeight: number
   /** First tin used locks the grade for this bowl session; other tins are disabled. */
   selectedMatchaTin: MatchaTin | null
+  /** Wall-clock start of an in-progress whisk; completes in the background across routes. */
+  whiskStartedAt: number | null
 }
 
 export const INITIAL_WHISKING_STATION: WhiskingStationState = {
@@ -36,6 +40,7 @@ export const INITIAL_WHISKING_STATION: WhiskingStationState = {
   isWhisked: false,
   totalWeight: 0,
   selectedMatchaTin: null,
+  whiskStartedAt: null,
 }
 
 export type { DrinkSize }
