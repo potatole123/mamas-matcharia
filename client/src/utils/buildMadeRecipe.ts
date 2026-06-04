@@ -58,6 +58,7 @@ export function createDrinkOrderSubmission(
     madeRecipe: buildMadeRecipe(drink),
     drink: {
       ...drink,
+      orderId: ticket.orderId,
       status: 'served',
       station: 'served',
     },

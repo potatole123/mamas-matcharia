@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import stationTable from '../assets/station-shared/station-table.png'
 import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
@@ -104,14 +105,15 @@ type DepartingToppingCup = {
 }
 
 function ToppingStationPage() {
+  const navigate = useNavigate()
   const {
     ticketStore,
     showOrderTicketText,
     revealedOrderLineCount,
     swapMainWithHistory,
-    beginNewOrder,
+    consumeTicket,
   } = useOrderTicketsContext()
-  const { drinkAtTopping, updateDrink, submitDrinkWithOrder, clearToppingCup } = useDrinkProgress()
+  const { drinkAtTopping, updateDrink, submitDrinkWithOrder } = useDrinkProgress()
   const toppingCup = drinkAtTopping?.cupVisual ?? null
   const selectedCream = drinkAtTopping?.recipe.creamTop
     ? CREAM_RECIPE_TO_UI[drinkAtTopping.recipe.creamTop] ?? null
@@ -129,14 +131,15 @@ function ToppingStationPage() {
   const POWDER_ANIMATION_MS = 1800
   const POWDER_PREVIEW_UPDATE_MS = 1450
   const isAnimating = Boolean(animatingCream || animatingPowder)
-  const showReadyButton = Boolean(drinkAtTopping && toppingCup) && !cupShooting
+  const showReadyButton = Boolean(drinkAtTopping && toppingCup && ticketStore.mainTicket) && !cupShooting
 
   const cupOnStage = toppingCup ?? departingServe?.cup ?? null
   const previewCream = selectedCream ?? departingServe?.cream ?? null
   const previewPowder = selectedPowder ?? departingServe?.powder ?? null
 
   function handleReadyClick() {
-    if (!drinkAtTopping || !toppingCup || cupShooting) return
+    const ticket = ticketStore.mainTicket
+    if (!drinkAtTopping || !toppingCup || !ticket || cupShooting) return
 
     setDepartingServe({
       cup: toppingCup,
@@ -144,13 +147,8 @@ function ToppingStationPage() {
       powder: selectedPowder,
     })
 
-    const ticket = ticketStore.mainTicket
-    if (ticket) {
-      submitDrinkWithOrder(ticket)
-      beginNewOrder()
-    } else {
-      clearToppingCup()
-    }
+    submitDrinkWithOrder(ticket)
+    consumeTicket(ticket.orderId)
 
     clearPendingTimeouts()
     setAnimatingCream(null)
@@ -162,6 +160,7 @@ function ToppingStationPage() {
     if (!cupShooting) return
     setCupShooting(false)
     setDepartingServe(null)
+    navigate('/serve-customer')
   }
 
   function trackTimeout(callback: () => void, delayMs: number) {

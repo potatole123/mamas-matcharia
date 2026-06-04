@@ -1,0 +1,116 @@
+.game-summary-page {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: 2rem;
+  background:
+    radial-gradient(circle at 20% 18%, rgb(255 248 214 / 90%), transparent 24rem),
+    linear-gradient(135deg, #8fbf68 0%, #f3d78b 52%, #d79b62 100%);
+  color: #4f2514;
+}
+
+.game-summary-card {
+  width: min(44rem, 92vw);
+  box-sizing: border-box;
+  padding: clamp(1.6rem, 4vw, 3rem);
+  border: 0.25rem solid rgb(79 37 20 / 88%);
+  border-radius: 1.4rem;
+  background: rgb(255 248 232 / 94%);
+  box-shadow: 0 1rem 2.4rem rgb(79 37 20 / 28%);
+  text-align: center;
+}
+
+.game-summary-kicker {
+  margin: 0 0 0.45rem;
+  font-size: clamp(0.85rem, 1.6vw, 1.05rem);
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.game-summary-title {
+  margin: 0;
+  font-size: clamp(2.4rem, 6vw, 4.4rem);
+  line-height: 0.95;
+}
+
+.game-summary-stars {
+  margin: 1.2rem 0 0.4rem;
+  color: #c6761f;
+  font-size: clamp(2.6rem, 7vw, 5rem);
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0.12rem 0 rgb(79 37 20 / 22%);
+}
+
+.game-summary-stars span {
+  color: rgb(79 37 20 / 24%);
+}
+
+.game-summary-target {
+  margin: 0 0 1.4rem;
+  font-size: clamp(0.95rem, 2vw, 1.15rem);
+  font-weight: 800;
+}
+
+.game-summary-score-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0 auto 1.5rem;
+  max-width: 26rem;
+}
+
+.game-summary-score-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  font-weight: 850;
+}
+
+.game-summary-score-row dt,
+.game-summary-score-row dd {
+  margin: 0;
+}
+
+.game-summary-score-row.is-total {
+  margin-top: 0.35rem;
+  padding-top: 0.55rem;
+  border-top: 0.16rem solid rgb(79 37 20 / 38%);
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  font-weight: 1000;
+}
+
+.game-summary-submit-status {
+  min-height: 1.5rem;
+  margin-bottom: 1rem;
+  font-size: clamp(0.85rem, 1.8vw, 1rem);
+  font-weight: 800;
+}
+
+.game-summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.8rem;
+}
+
+.game-summary-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.8rem 1.6rem;
+  background: #4f2514;
+  color: #fff8e8;
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.game-summary-button--secondary {
+  background: #8d653a;
+}
+
+.game-summary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
