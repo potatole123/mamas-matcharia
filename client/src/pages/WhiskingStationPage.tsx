@@ -187,7 +187,7 @@ function WhiskingStationPage() {
     setMatchaGradeFromTin(tin)
     runSpoonCycle(setSpoonState)
 
-    if (tutorialStepRef.current === 'add-matcha') {
+    if (tutorialStepRef.current === 'add-matcha' && totalWeight >= 2) {
       setWhiskingStationStep('add-water')
     }
   }
