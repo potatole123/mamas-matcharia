@@ -896,53 +896,73 @@
   }
 }
 
-.base-cup-size-popup {
+.base-cup-size-chooser {
   position: absolute;
-  left: 50%;
-  top: 42%;
-  transform: translateX(-50%);
+  inset: 0;
   z-index: 12;
-  box-sizing: border-box;
-  width: min(40%, 420px);
-  min-width: min(20rem, 72vw);
-  padding: clamp(1rem, 1.7vw, 1.45rem);
-  border-radius: 0.75rem;
-  background: rgb(255 250 240 / 97%);
-  border: 0.18rem solid #6d4023;
-  box-shadow: 0 0.65rem 1.5rem rgb(61 36 18 / 28%);
-  text-align: center;
+  pointer-events: none;
 }
 
-.base-cup-size-popup__title {
-  margin: 0 0 1.25rem;
-  font-size: clamp(1.15rem, 2.2vw, 1.65rem);
-  font-weight: 800;
-  line-height: 1.25;
-  color: #4f2514;
-}
-
-.base-cup-size-popup__actions {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-}
-
-.base-cup-size-popup__actions button {
+.base-cup-size-choice {
+  position: absolute;
+  top: 64%;
+  display: block;
+  width: 16%;
   border: 0;
-  border-radius: 0.45rem;
-  padding: 0.65rem 1.75rem;
-  font-size: clamp(1rem, 1.8vw, 1.25rem);
+  padding: 0;
+  font-size: clamp(0.65rem, 0.9vw, 0.82rem);
   font-weight: 700;
-  background: #7f9658;
-  color: #fff9e8;
+  background: transparent;
+  color: #4f2514;
   cursor: pointer;
+  pointer-events: auto;
 }
 
-.base-cup-size-popup__actions button:hover {
-  filter: brightness(1.05);
+.base-cup-size-choice--small {
+  left: 15%;
 }
 
-.base-cup-size-popup__actions button:focus-visible {
+.base-cup-size-choice--large {
+  left: 26%;
+}
+
+.base-cup-size-choice img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.base-cup-size-choice--small span {
+  position: absolute;
+  left: 46%;
+  top: 55%;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+  pointer-events: none;
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / 80%),
+    0 0 0.25rem rgb(255 250 240 / 90%);
+}
+
+.base-cup-size-choice--large span {
+  position: absolute;
+  left: 51%;
+  top: 55%;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+  pointer-events: none;
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / 80%),
+    0 0 0.25rem rgb(255 250 240 / 90%);
+}
+
+.base-cup-size-choice:hover {
+  filter: drop-shadow(0 0 0.25rem rgb(255 248 182 / 80%));
+}
+
+.base-cup-size-choice:focus-visible {
   outline: 3px solid #4f2514;
   outline-offset: 3px;
 }
@@ -1259,8 +1279,10 @@
 
 .base-ice-bucket.is-tutorial-highlight,
 .base-milk.is-tutorial-highlight,
+.base-pitcher.is-tutorial-highlight,
 .base-flavor.is-tutorial-highlight,
 .base-sweetener.is-tutorial-highlight,
+.base-cup-size-choice.is-tutorial-highlight,
 .whisking-empty-bowl.is-tutorial-highlight,
 .whisking-whisk.is-tutorial-highlight,
 .whisking-kettle.is-tutorial-highlight,
@@ -1274,72 +1296,6 @@
   filter: drop-shadow(0 0 0.35rem rgb(255 248 182 / 88%))
     drop-shadow(0 0 0.85rem rgb(154 202 114 / 72%));
   animation: station-tutorial-object-pulse 1.1s ease-in-out infinite;
-}
-
-.base-sweetness-popup {
-  position: absolute;
-  left: 50%;
-  top: 47%;
-  transform: translate(-50%, -50%);
-  z-index: 30;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.75rem;
-  box-sizing: border-box;
-  width: min(34%, 360px);
-  min-width: min(15rem, 68vw);
-  padding: clamp(0.85rem, 1.4vw, 1.2rem);
-  border-radius: 0.75rem;
-  background: rgb(255 250 240 / 97%);
-  border: 0.16rem solid #6d4023;
-  box-shadow: 0 0.55rem 1.2rem rgb(61 36 18 / 25%);
-  pointer-events: auto;
-}
-
-.base-sweetness-popup__title {
-  margin: 0;
-  font-size: clamp(0.95rem, 1.25vw, 1.15rem);
-  font-weight: 800;
-  color: #4f2514;
-  text-align: center;
-}
-
-.base-sweetness-popup__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.35rem;
-}
-
-.base-sweetness-popup__actions button,
-.base-sweetness-popup__cancel {
-  border: 0.12rem solid #5d3a20;
-  border-radius: 0.4rem;
-  padding: 0.36rem 0.65rem;
-  font-size: clamp(0.7rem, 0.95vw, 0.82rem);
-  font-weight: 700;
-  background: #7f9658;
-  color: #fff9e8;
-  cursor: pointer;
-}
-
-.base-sweetness-popup__actions button:hover,
-.base-sweetness-popup__cancel:hover {
-  background: #e8dfc8;
-}
-
-.base-sweetness-popup__actions button:focus-visible,
-.base-sweetness-popup__cancel:focus-visible {
-  outline: 2px solid #7f9658;
-  outline-offset: 2px;
-}
-
-.base-sweetness-popup__cancel {
-  font-size: clamp(0.62rem, 0.88vw, 0.76rem);
-  font-weight: 600;
-  background: rgb(255 250 240 / 96%);
-  color: #4f2514;
 }
 
 .base-milk {
