@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import stationTable from '../assets/station-shared/station-table.png'
 import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
@@ -104,6 +105,7 @@ type DepartingToppingCup = {
 }
 
 function ToppingStationPage() {
+  const navigate = useNavigate()
   const {
     ticketStore,
     showOrderTicketText,
@@ -162,6 +164,7 @@ function ToppingStationPage() {
     if (!cupShooting) return
     setCupShooting(false)
     setDepartingServe(null)
+    navigate('/serve-customer')
   }
 
   function trackTimeout(callback: () => void, delayMs: number) {

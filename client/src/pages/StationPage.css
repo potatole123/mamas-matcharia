@@ -293,6 +293,24 @@
   z-index: 2;
 }
 
+.serve-customer-page .serve-customer-counter {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: auto;
+  z-index: 2;
+}
+
+.serve-customer-page .serve-customer-bearista {
+  position: absolute;
+  left: 2.8%;
+  bottom: 0%;
+  width: 29%;
+  height: auto;
+  z-index: 3;
+}
+
 .station-order-ticket-wrap {
   position: absolute;
   top: 3%;
@@ -403,6 +421,59 @@
     left var(--order-bear-transition-ms, 0ms) ease-in-out,
     top var(--order-bear-transition-ms, 0ms) ease-in-out,
     width var(--order-bear-transition-ms, 0ms) ease-in-out;
+}
+
+.serve-customer-page .serve-customer-bear {
+  position: absolute;
+  left: 60%;
+  top: 67%;
+  width: 20%;
+  height: auto;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.serve-customer-page .serve-customer-drink {
+  position: absolute;
+  right: 30%;
+  bottom: 20%;
+  height: auto;
+  z-index: 4;
+}
+
+.serve-customer-page .serve-customer-drink--large {
+  --serve-drink-taste-bottom: 30%;
+
+  width: 6.78%;
+}
+
+.serve-customer-page .serve-customer-drink--small {
+  --serve-drink-taste-bottom: 33%;
+
+  width: 5.49%;
+}
+
+.serve-customer-page .serve-customer-drink.is-tasting {
+  animation: serve-customer-drink-taste 2.6s ease-in-out 1s both;
+}
+
+@keyframes serve-customer-drink-taste {
+  0% {
+    right: 30%;
+    bottom: 20%;
+  }
+  31% {
+    right: 35%;
+    bottom: var(--serve-drink-taste-bottom);
+  }
+  69% {
+    right: 35%;
+    bottom: var(--serve-drink-taste-bottom);
+  }
+  100% {
+    right: 30%;
+    bottom: 20%;
+  }
 }
 
 .order-station-page .order-speech-bubble {

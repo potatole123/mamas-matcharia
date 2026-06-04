@@ -8,6 +8,7 @@ import OrderStationPage from './pages/OrderStationPage'
 import BaseStationPage from './pages/BaseStationPage'
 import WhiskingStationPage from './pages/WhiskingStationPage'
 import ToppingStationPage from './pages/ToppingStationPage'
+import ServeCustomerPage from './pages/ServeCustomerPage'
 import WaitingRoomPage from './pages/WaitingRoomPage'
 import EnterJoinCodePage from './pages/EnterJoinCodePage'
 import { Navigate, Routes, Route } from 'react-router-dom'
@@ -95,6 +96,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ToppingStationPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/serve-customer"
+                  element={
+                    <ProtectedRoute>
+                      <ServeCustomerPage />
                     </ProtectedRoute>
                   }
                 />
