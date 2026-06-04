@@ -7,9 +7,19 @@ export type OrderStationTutorialStep =
   | 'order-ticket'
   | 'complete'
 
+export type WhiskingStationTutorialStep =
+  | 'welcome'
+  | 'add-matcha'
+  | 'add-water'
+  | 'whisk'
+  | 'pour-into-cup'
+  | 'complete'
+
 type TutorialContextValue = {
   orderStationStep: OrderStationTutorialStep | null
   setOrderStationStep: (step: OrderStationTutorialStep) => void
+  whiskingStationStep: WhiskingStationTutorialStep | null
+  setWhiskingStationStep: (step: WhiskingStationTutorialStep) => void
 }
 
 export const TutorialContext = createContext<TutorialContextValue | null>(null)
