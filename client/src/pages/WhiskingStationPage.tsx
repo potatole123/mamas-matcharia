@@ -46,7 +46,7 @@ const WHISKING_STATION_TUTORIAL_MESSAGES: Record<
   welcome:
     'Welcome to the whisking station! Here you\'ll prepare the matcha base for your drinks. Let\'s learn how to make a perfect cup of matcha.',
   'add-matcha':
-    'First, click on one of the matcha tins (Regular, Premium, or Ultra) to add 1g of matcha powder to the bowl. The order ticket shows which grade you need. You will need around 3g-4g of matcha powder for a regular matcha.',
+    'First, click on one of the matcha tins (Regular, Premium, or Ultra) to add 1g of matcha powder to the bowl. The order ticket shows which grade you need. You will need around 3g of matcha powder for a small cup and 4g of matcha for a large cup of matcha.',
   'add-water':
     'Great! Now click the kettle to pour hot water into the bowl with the matcha powder. Every pour will be 60g of water.',
   whisk:
@@ -257,7 +257,7 @@ function WhiskingStationPage() {
     trackTimeout(() => {
       updateWhiskingStation((prev) => ({
         bowlHasWater: true,
-        totalWeight: prev.totalWeight + 60,
+        totalWeight: prev.totalWeight + 64,
         isWhisked: false,
         whiskStartedAt: null,
       }))
@@ -472,7 +472,7 @@ function WhiskingStationPage() {
             <p>{tutorialMessage}</p>
             {shouldShowTutorialContinue && (
               <span className="station-tutorial-next">
-                Click anywhere to continue <b aria-hidden="true">›</b>
+                Click anywhere to continue
               </span>
             )}
           </aside>

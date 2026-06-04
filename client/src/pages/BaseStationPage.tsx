@@ -623,7 +623,7 @@ function BaseStationPage() {
             <p>{tutorialMessage}</p>
             {isTutorialContinueStep && (
               <span className="station-tutorial-next">
-                Click anywhere to continue <b aria-hidden="true">›</b>
+                Click anywhere to continue
               </span>
             )}
           </aside>
