@@ -7,7 +7,7 @@ export type Temp = (typeof TEMP)[number];
 export const ICE_LEVEL = ["none", "light", "regular"] as const;
 export type IceLevel = (typeof ICE_LEVEL)[number];
 
-export const MATCHA = ["regular", "premium", "super premium"] as const;
+export const MATCHA = ["regular", "premium", "ultra"] as const;
 export type Matcha = (typeof MATCHA)[number];
 
 export const MILK = ["whole", "oat", "soy", "almond"] as const;

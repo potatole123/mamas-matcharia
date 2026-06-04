@@ -90,7 +90,7 @@ export function useGameDay() {
   const scheduleNpcs = useCallback(
     (dayPayload: StartGameDayResponse) => {
       clearSpawnTimeouts()
-      shouldShowLevelBannerRef.current = true
+      shouldShowLevelBannerRef.current = dayPayload.day.mode !== 'multiplayer'
       setDayState(dayPayload)
       setWaitingNpcs([])
       setDrinksByOrderId({})

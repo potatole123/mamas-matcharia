@@ -327,7 +327,7 @@ function OrderStationPage() {
         )}
         <img className="order-counter" src={orderCounter} alt="" draggable="false" />
         <img className="order-bearista" src={bearista} alt="" draggable="false" />
-        {isLevelBannerVisible && dayState && (
+        {isLevelBannerVisible && dayState && dayState.day.mode !== 'multiplayer' && (
           <p className="station-level-banner">Level {dayState.day.level}</p>
         )}
         {tutorialMessage && (

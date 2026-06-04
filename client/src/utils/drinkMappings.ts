@@ -29,13 +29,13 @@ export const POWDER_UI_TO_RECIPE: Record<ToppingPowderOption, Powder> = {
 export const MATCHA_TIN_TO_GRADE: Record<MatchaTin, Matcha> = {
   1: 'regular',
   2: 'premium',
-  3: 'super premium',
+  3: 'ultra',
 }
 
 export const MATCHA_GRADE_TO_TIN: Record<Matcha, MatchaTin> = {
   regular: 1,
   premium: 2,
-  'super premium': 3,
+  ultra: 3,
 }
 
 export function matchaGradeToTin(grade: Matcha): MatchaTin {
