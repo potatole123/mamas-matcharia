@@ -33,6 +33,7 @@ type MilkPourTarget = 'cup' | 'pitcher'
 type MilkAnimPhase = 'idle' | 'over-target' | 'pouring' | 'return'
 type PitcherAnimPhase = 'idle' | 'at-heater' | 'over-cup' | 'pouring' | 'return'
 type SweetenerAnimPhase = 'idle' | 'over-cup' | 'return'
+type FlavorAnimPhase = 'idle' | 'over-cup' | 'return'
 
 const ICE_SCOOP_DELAY_MS = 500
 const ICE_MOVE_DELAY_MS = 500
@@ -51,6 +52,9 @@ const PITCHER_RETURN_MS = 800
 const SWEETENER_MOVE_MS = 650
 const SWEETENER_ADD_MS = 450
 const SWEETENER_RETURN_MS = 650
+const FLAVOR_MOVE_MS = 650
+const FLAVOR_PUMP_MS = 450
+const FLAVOR_RETURN_MS = 650
 
 const FLAVOR_OPTIONS: { id: FlavorOption; label: string }[] = [
   { id: 'strawberry', label: 'Strawberry' },
@@ -140,6 +144,8 @@ function BaseStationPage() {
   const [pitcherAnimPhase, setPitcherAnimPhase] = useState<PitcherAnimPhase>('idle')
   const [activeSweetener, setActiveSweetener] = useState<SweetenerOption | null>(null)
   const [sweetenerAnimPhase, setSweetenerAnimPhase] = useState<SweetenerAnimPhase>('idle')
+  const [activeFlavor, setActiveFlavor] = useState<FlavorOption | null>(null)
+  const [flavorAnimPhase, setFlavorAnimPhase] = useState<FlavorAnimPhase>('idle')
   const [pendingSweetener, setPendingSweetener] = useState<SweetenerOption | null>(null)
   const [showIceLevelPopup, setShowIceLevelPopup] = useState(false)
   const pendingTimeoutsRef = useRef<number[]>([])
@@ -149,8 +155,13 @@ function BaseStationPage() {
   const isMilkAnimating = activeMilk !== null
   const isPitcherAnimating = pitcherAnimPhase !== 'idle'
   const isSweetenerAnimating = activeSweetener !== null
+  const isFlavorAnimating = activeFlavor !== null
   const isStationAnimating =
-    isIceAnimating || isMilkAnimating || isPitcherAnimating || isSweetenerAnimating
+    isIceAnimating ||
+    isMilkAnimating ||
+    isPitcherAnimating ||
+    isSweetenerAnimating ||
+    isFlavorAnimating
   const isPopupOpen = showIceLevelPopup || Boolean(pendingSweetener)
   const canAddFlavorAndSweetener = cupHasMilk && !isStationAnimating && !isPopupOpen
   const showReadyButton =
@@ -290,6 +301,28 @@ function BaseStationPage() {
     return pitcher
   }
 
+  function getFlavorClassName(flavorId: FlavorOption) {
+    const classes = ['base-flavor', `base-flavor-${flavorId}`]
+
+    if (activeFlavor === flavorId && flavorAnimPhase === 'over-cup') {
+      classes.push('base-flavor-over-cup')
+    }
+
+    if (activeFlavor === flavorId && flavorAnimPhase === 'return') {
+      classes.push('base-flavor-returning')
+    }
+
+    if (selectedFlavor === flavorId) {
+      classes.push('is-selected')
+    }
+
+    if (activeTutorialStep === 'review-flavor' && activeFlavor === null) {
+      classes.push('is-tutorial-highlight')
+    }
+
+    return classes.join(' ')
+  }
+
   function getSweetenerClassName(sweetenerId: SweetenerOption) {
     const classes = ['base-sweetener', `base-sweetener-${sweetenerId}`]
 
@@ -309,7 +342,7 @@ function BaseStationPage() {
   }
 
   function handleFlavorClick(flavorId: FlavorOption) {
-    if (!drinkAtBase || !canAddFlavorAndSweetener || pendingSweetener) return
+    if (!drinkAtBase || !canAddFlavorAndSweetener || pendingSweetener || selectedFlavor) return
     if (activeTutorialStep && activeTutorialStep !== 'complete') {
       if (
         activeTutorialStep !== 'review-flavor' ||
@@ -320,10 +353,26 @@ function BaseStationPage() {
       }
     }
 
-    updateDrink(drinkAtBase.id, { recipe: { flavor: flavorId } })
-    if (tutorialStepRef.current === 'review-flavor') {
-      setBaseStationStep('review-sweetener')
-    }
+    setActiveFlavor(flavorId)
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setFlavorAnimPhase('over-cup')
+      })
+    })
+
+    trackTimeout(() => {
+      updateDrink(drinkAtBase.id, { recipe: { flavor: flavorId } })
+      setFlavorAnimPhase('return')
+      if (tutorialStepRef.current === 'review-flavor') {
+        setBaseStationStep('review-sweetener')
+      }
+    }, FLAVOR_MOVE_MS + FLAVOR_PUMP_MS)
+
+    trackTimeout(() => {
+      setActiveFlavor(null)
+      setFlavorAnimPhase('idle')
+    }, FLAVOR_MOVE_MS + FLAVOR_PUMP_MS + FLAVOR_RETURN_MS)
   }
 
   function handleSweetenerClick(sweetenerId: SweetenerOption) {
@@ -590,9 +639,7 @@ function BaseStationPage() {
         {FLAVOR_OPTIONS.map(({ id }) => (
           <img
             key={id}
-            className={`base-flavor base-flavor-${id}${selectedFlavor === id ? ' is-selected' : ''}${
-              activeTutorialStep === 'review-flavor' ? ' is-tutorial-highlight' : ''
-            }`}
+            className={getFlavorClassName(id)}
             src={flavorPump}
             alt=""
             draggable="false"
