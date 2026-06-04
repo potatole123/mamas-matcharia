@@ -21,7 +21,8 @@ const TOPPING_FIELDS = ['creamTop', 'powder'] as const
 const MAX_WAITING_SCORE = 5
 const FULL_WAITING_SCORE_SECONDS = 40
 const ZERO_WAITING_SCORE_SECONDS = 300
-const TIP_RATE = 0.5
+const AVERAGE_TIP_RATE = 0.25
+const TIP_RATE_VARIANCE = 0.05
 
 type RecipeScoreField =
   | (typeof ACCURACY_FIELDS)[number]
@@ -74,11 +75,17 @@ function calculateWaitingScore(timing?: DrinkOrderScoreTiming) {
   return Math.round(MAX_WAITING_SCORE * (1 - decayProgress))
 }
 
+function calculateTipRate() {
+  const randomOffset = Math.random() * TIP_RATE_VARIANCE * 2 - TIP_RATE_VARIANCE
+  return AVERAGE_TIP_RATE + randomOffset
+}
+
 /**
  * Score one served drink against its order ticket.
  *
  * Missing milk is equivalent to "none"; missing matcha is a mismatch.
  * Waiting score is full through 40 seconds, then linearly decays to 0 at 300 seconds.
+ * Tips are calculated from a per-order random tip rate centered at 25%.
  */
 export function scoreDrinkOrder(
   submission: DrinkOrderSubmission,
@@ -101,7 +108,7 @@ export function scoreDrinkOrder(
   )
   const waitingScore = calculateWaitingScore(timing)
   const totalScore = accuracyScore + measurementScore + toppingScore + waitingScore
-  const tipsEarned = Math.round(totalScore * TIP_RATE * 100) / 100
+  const tipsEarned = Math.round(totalScore * calculateTipRate() * 100) / 100
 
   return {
     waitingScore,

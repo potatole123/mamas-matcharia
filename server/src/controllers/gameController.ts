@@ -89,6 +89,10 @@ function assertFiniteNumber(value: unknown, fieldName: string) {
   return value
 }
 
+function roundCurrencyAmount(amount: number) {
+  return Math.round(amount * 100) / 100
+}
+
 function assertInteger(value: unknown, fieldName: string) {
   const numberValue = assertFiniteNumber(value, fieldName)
 
@@ -612,11 +616,13 @@ function parseDayScore(reqBody: unknown) {
       dayScore.totalScore,
       "dayScore.totalScore",
   )
-  const tipsEarned = assertFiniteNumber(dayScore.tipsEarned, "dayScore.tipsEarned")
+  const rawTipsEarned = assertFiniteNumber(dayScore.tipsEarned, "dayScore.tipsEarned")
 
-  if (tipsEarned < 0) {
+  if (rawTipsEarned < 0) {
     throw new BadRequestError("dayScore.tipsEarned must be non-negative")
   }
+
+  const tipsEarned = roundCurrencyAmount(rawTipsEarned)
 
   return {
     waitingScore,
@@ -1133,7 +1139,7 @@ export const submitGameResults: RequestHandler = async (req, res) => {
       const unlockedNextLevel =
           canUpdateProgression && passed && level === profile.highestDayUnlocked
 
-      profile.coinBalance += dayScore.tipsEarned
+      profile.coinBalance = roundCurrencyAmount(profile.coinBalance + dayScore.tipsEarned)
 
       if (unlockedNextLevel) {
         profile.highestDayUnlocked = level + 1
