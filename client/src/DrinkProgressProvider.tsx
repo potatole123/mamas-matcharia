@@ -275,7 +275,7 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
         orderCreatedAt
           ? {
               orderCreatedAt,
-              expirationTime: new Date(orderCreatedAt.getTime() + 30_000),
+              expirationTime: new Date(orderCreatedAt.getTime() + 40_000),
               servedAt,
             }
           : undefined,

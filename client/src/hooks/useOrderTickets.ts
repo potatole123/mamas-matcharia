@@ -102,6 +102,15 @@ export function useOrderTickets() {
     setRevealedOrderLineCount(0)
   }, [])
 
+  const resetTickets = useCallback(() => {
+    setTicketStore({
+      mainTicket: null,
+      completedTickets: [],
+    })
+    setShowOrderTicketText(false)
+    setRevealedOrderLineCount(0)
+  }, [])
+
   return {
     ticketStore,
     showOrderTicketText,
@@ -112,5 +121,6 @@ export function useOrderTickets() {
     markOrderFullyRevealed,
     swapMainWithHistory,
     consumeTicket,
+    resetTickets,
   }
 }

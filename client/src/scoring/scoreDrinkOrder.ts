@@ -18,9 +18,9 @@ const ACCURACY_FIELDS = [
 const MEASUREMENT_FIELDS = ['matcha', 'sweetnessLevel'] as const
 const TOPPING_FIELDS = ['creamTop', 'powder'] as const
 
-const MAX_WAITING_SCORE = 10
-const FULL_WAITING_SCORE_SECONDS = 30
-const ZERO_WAITING_SCORE_SECONDS = 90
+const MAX_WAITING_SCORE = 5
+const FULL_WAITING_SCORE_SECONDS = 40
+const ZERO_WAITING_SCORE_SECONDS = 300
 const TIP_RATE = 0.5
 
 type RecipeScoreField =
@@ -78,7 +78,7 @@ function calculateWaitingScore(timing?: DrinkOrderScoreTiming) {
  * Score one served drink against its order ticket.
  *
  * Missing milk is equivalent to "none"; missing matcha is a mismatch.
- * Waiting score is full through 30 seconds, then linearly decays to 0 at 90 seconds.
+ * Waiting score is full through 40 seconds, then linearly decays to 0 at 300 seconds.
  */
 export function scoreDrinkOrder(
   submission: DrinkOrderSubmission,

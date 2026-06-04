@@ -39,7 +39,7 @@ export type LevelConfig = {
 const LEVEL_CONFIGS: LevelConfig[] = [
   {
     level: 1,
-    targetScore: 300,
+    targetScore: 4 * 9,
     npcCount: 4,
     npcFrequencySeconds: 6,
     recipeSet: {
@@ -57,7 +57,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
   },
   {
     level: 2,
-    targetScore: 500,
+    targetScore: 5 * 9,
     npcCount: 5,
     npcFrequencySeconds: 5.5,
     recipeSet: {
@@ -75,7 +75,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
   },
   {
     level: 3,
-    targetScore: 750,
+    targetScore: 7 * 9,
     npcCount: 7,
     npcFrequencySeconds: 5,
     recipeSet: {
@@ -93,7 +93,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
   },
   {
     level: 4,
-    targetScore: 1000,
+    targetScore: 9 * 9,
     npcCount: 9,
     npcFrequencySeconds: 4.5,
     recipeSet: {
@@ -111,7 +111,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
   },
   {
     level: 5,
-    targetScore: 1250,
+    targetScore: 11 * 9,
     npcCount: 11,
     npcFrequencySeconds: 4,
     recipeSet: {
@@ -133,13 +133,17 @@ export function getLevelConfig(level: number): LevelConfig {
   const configuredLevel = LEVEL_CONFIGS.find((config) => config.level === level)
 
   if (configuredLevel) {
-    return configuredLevel
+    return {
+      ...configuredLevel,
+      targetScore: configuredLevel.npcCount * 9,
+    }
   }
 
+  const npcCount = Math.min(20, 13 + (level - 5) * 2)
   return {
     level,
-    targetScore: 1250 + (level - 5) * 250,
-    npcCount: Math.min(20, 13 + (level - 5) * 2),
+    targetScore: npcCount * 9,
+    npcCount,
     npcFrequencySeconds: Math.max(2, 4 - (level - 5) * 0.25),
     recipeSet: {},
   }

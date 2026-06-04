@@ -10,6 +10,7 @@ import drinkLarge from '../assets/order/drink-large.png'
 import drinkSmall from '../assets/order/drink-small.png'
 import orderCounter from '../assets/order/order-counter.png'
 import { useDrinkProgress } from '../DrinkProgressContext'
+import { useGameDayContext } from '../GameDayContext'
 import type { OrderScoreResult, ScoredDrinkOrderSubmission } from '../types/drinkSubmission'
 import './StationPage.css'
 
@@ -49,15 +50,19 @@ function findScoredSubmission(
 function ServeCustomerPage() {
   const navigate = useNavigate()
   const { lastOrderSubmission, scoredOrderSubmissions } = useDrinkProgress()
+  const { dayState } = useGameDayContext()
   const scoredSubmission = findScoredSubmission(scoredOrderSubmissions, lastOrderSubmission?.drinkId)
   const score = scoredSubmission?.score ?? null
+  const isFinalOrder = dayState
+    ? scoredOrderSubmissions.length >= dayState.day.npcCount
+    : false
   const servedDrinkSize = lastOrderSubmission?.drink.cupVisual.size ?? null
   const servedDrinkImage =
     servedDrinkSize === 'large' ? drinkLarge : servedDrinkSize === 'small' ? drinkSmall : null
   const [isBearTasting, setIsBearTasting] = useState(false)
   const [isScoreRevealed, setIsScoreRevealed] = useState(false)
   const bearReactionImage =
-    score && isScoreRevealed ? (score.totalScore > 10 ? bearLaugh : bearSad) : bearSmile
+    score && isScoreRevealed ? (score.totalScore >= 9 ? bearLaugh : bearSad) : bearSmile
   const bearImage = isBearTasting ? bearOpen : bearReactionImage
 
   useEffect(() => {
@@ -78,7 +83,7 @@ function ServeCustomerPage() {
       SERVE_SCORE_REVEAL_DELAY_MS,
     )
     const returnToOrderTimeoutId = window.setTimeout(
-      () => navigate('/order-station'),
+      () => navigate(isFinalOrder ? '/game-summary' : '/order-station'),
       SERVE_SCORE_REVEAL_DELAY_MS + SERVE_RETURN_TO_ORDER_DELAY_MS,
     )
 
@@ -88,7 +93,7 @@ function ServeCustomerPage() {
       window.clearTimeout(revealScoreTimeoutId)
       window.clearTimeout(returnToOrderTimeoutId)
     }
-  }, [lastOrderSubmission?.drinkId, navigate, score, servedDrinkSize])
+  }, [isFinalOrder, lastOrderSubmission?.drinkId, navigate, score, servedDrinkSize])
 
   return (
     <main className="station-page serve-customer-page" aria-label="Serve customer page">
