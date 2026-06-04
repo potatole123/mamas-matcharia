@@ -105,3 +105,20 @@
   filter: drop-shadow(0 0 0.45rem rgb(241 229 175 / 85%));
   transform: translateY(-4%);
 }
+
+.station-dock-button.is-tutorial-highlight {
+  filter: drop-shadow(0 0 0.35rem rgb(255 248 182 / 88%))
+    drop-shadow(0 0 0.85rem rgb(154 202 114 / 72%));
+  animation: station-dock-tutorial-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes station-dock-tutorial-pulse {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-4%);
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import stationTable from '../assets/station-shared/station-table.png'
 import OrderTicketBoard from '../components/OrderTicketBoard'
@@ -6,7 +6,9 @@ import StationDock from '../components/StationDock'
 import readyButton from '../assets/ready_button.png'
 import { useDrinkProgress } from '../DrinkProgressContext'
 import { getCupPreviewSrc, type BaseCupSnapshot } from '../drinkCup'
+import { useGameDayContext } from '../GameDayContext'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
+import { useTutorialContext, type ToppingStationTutorialStep } from '../TutorialContext'
 import {
   CREAM_UI_TO_RECIPE,
   POWDER_UI_TO_RECIPE,
@@ -104,6 +106,24 @@ type DepartingToppingCup = {
   powder: PowderOption | null
 }
 
+function getToppingTutorialMessage(
+  step: Exclude<ToppingStationTutorialStep, 'complete'>,
+  recipe: { creamTop?: string; powder?: string } | null,
+) {
+  switch (step) {
+    case 'review-cream-top':
+      return recipe?.creamTop && recipe.creamTop !== 'none'
+        ? 'These are cream tops. Check the order ticket, then click the matching cream top.'
+        : 'These are cream tops. This order says None, so leave them alone for now.'
+    case 'review-powder':
+      return recipe?.powder && recipe.powder !== 'none'
+        ? 'These are powders. Check the order ticket, then click the matching powder.'
+        : 'These are powders. This order says None, so skip them for now.'
+    case 'send-to-customer':
+      return 'Click the Ready button to send the drink off to the customer.'
+  }
+}
+
 function ToppingStationPage() {
   const navigate = useNavigate()
   const {
@@ -113,6 +133,8 @@ function ToppingStationPage() {
     swapMainWithHistory,
     consumeTicket,
   } = useOrderTicketsContext()
+  const { dayState } = useGameDayContext()
+  const { toppingStationStep, setToppingStationStep } = useTutorialContext()
   const { drinkAtTopping, updateDrink, submitDrinkWithOrder } = useDrinkProgress()
   const toppingCup = drinkAtTopping?.cupVisual ?? null
   const selectedCream = drinkAtTopping?.recipe.creamTop
@@ -126,12 +148,26 @@ function ToppingStationPage() {
   const [animatingCream, setAnimatingCream] = useState<CreamOption | null>(null)
   const [animatingPowder, setAnimatingPowder] = useState<PowderOption | null>(null)
   const pendingTimeoutsRef = useRef<number[]>([])
+  const tutorialStepRef = useRef<ToppingStationTutorialStep | null>(toppingStationStep)
   const CREAM_ANIMATION_MS = 1500
   const CREAM_PREVIEW_UPDATE_MS = 1200
   const POWDER_ANIMATION_MS = 1800
   const POWDER_PREVIEW_UPDATE_MS = 1450
   const isAnimating = Boolean(animatingCream || animatingPowder)
   const showReadyButton = Boolean(drinkAtTopping && toppingCup && ticketStore.mainTicket) && !cupShooting
+  const activeTutorialStep =
+    dayState && dayState.day.mode !== 'multiplayer' ? toppingStationStep : null
+  const activeRecipe = ticketStore.mainTicket?.recipe ?? null
+  const tutorialMessage =
+    activeTutorialStep && activeTutorialStep !== 'complete'
+      ? getToppingTutorialMessage(activeTutorialStep, activeRecipe)
+      : null
+  const shouldShowTutorialContinue =
+    (activeTutorialStep === 'review-cream-top' && activeRecipe?.creamTop === 'none') ||
+    (activeTutorialStep === 'review-powder' && activeRecipe?.powder === 'none')
+  const isStationDockLocked = Boolean(
+    activeTutorialStep && activeTutorialStep !== 'complete',
+  )
 
   const cupOnStage = toppingCup ?? departingServe?.cup ?? null
   const previewCream = selectedCream ?? departingServe?.cream ?? null
@@ -154,6 +190,9 @@ function ToppingStationPage() {
     setAnimatingCream(null)
     setAnimatingPowder(null)
     setCupShooting(true)
+    if (tutorialStepRef.current === 'send-to-customer') {
+      setToppingStationStep('complete')
+    }
   }
 
   function handleCupShootAnimationEnd() {
@@ -179,11 +218,28 @@ function ToppingStationPage() {
     }
   }, [])
 
+  useEffect(() => {
+    tutorialStepRef.current = activeTutorialStep
+  }, [activeTutorialStep])
+
   function handleCreamClick(cream: CreamOption) {
     if (!drinkAtTopping || !toppingCup || isAnimating || selectedCream || selectedPowder) return
+    if (activeTutorialStep && activeTutorialStep !== 'complete') {
+      if (
+        activeTutorialStep !== 'review-cream-top' ||
+        activeRecipe?.creamTop === 'none' ||
+        (activeRecipe?.creamTop && CREAM_RECIPE_TO_UI[activeRecipe.creamTop] !== cream)
+      ) {
+        return
+      }
+    }
+
     setAnimatingCream(cream)
     trackTimeout(() => {
       updateDrink(drinkAtTopping.id, { recipe: { creamTop: CREAM_UI_TO_RECIPE[cream] } })
+      if (tutorialStepRef.current === 'review-cream-top') {
+        setToppingStationStep('review-powder')
+      }
     }, CREAM_PREVIEW_UPDATE_MS)
     trackTimeout(() => {
       setAnimatingCream(null)
@@ -192,9 +248,22 @@ function ToppingStationPage() {
 
   function handlePowderClick(powder: PowderOption) {
     if (!drinkAtTopping || !toppingCup || isAnimating || selectedPowder) return
+    if (activeTutorialStep && activeTutorialStep !== 'complete') {
+      if (
+        activeTutorialStep !== 'review-powder' ||
+        activeRecipe?.powder === 'none' ||
+        (activeRecipe?.powder && POWDER_RECIPE_TO_UI[activeRecipe.powder] !== powder)
+      ) {
+        return
+      }
+    }
+
     setAnimatingPowder(powder)
     trackTimeout(() => {
       updateDrink(drinkAtTopping.id, { recipe: { powder: POWDER_UI_TO_RECIPE[powder] } })
+      if (tutorialStepRef.current === 'review-powder') {
+        setToppingStationStep('send-to-customer')
+      }
     }, POWDER_PREVIEW_UPDATE_MS)
     trackTimeout(() => {
       setAnimatingPowder(null)
@@ -227,8 +296,48 @@ function ToppingStationPage() {
     ? 'pointer'
     : 'default'
 
+  function getCreamClassName(cream: CreamOption) {
+    const shouldHighlight = activeTutorialStep === 'review-cream-top'
+
+    return `topping-cream topping-cream-${cream} ${
+      selectedCream === cream ? 'is-selected' : ''
+    } ${animatingCream === cream ? 'is-animating' : ''}${
+      shouldHighlight ? ' is-tutorial-highlight' : ''
+    }`
+  }
+
+  function getPowderClassName(powder: PowderOption) {
+    const shouldHighlight = activeTutorialStep === 'review-powder'
+
+    return `topping-powder topping-powder-${powder} ${
+      selectedPowder === powder ? 'is-selected' : ''
+    } ${animatingPowder === powder ? 'is-animating' : ''}${
+      shouldHighlight ? ' is-tutorial-highlight' : ''
+    }`
+  }
+
+  function handleStageClick(event: MouseEvent<HTMLElement>) {
+    const clickedElement = event.target as Element
+    if (
+      clickedElement.closest('.station-dock') ||
+      clickedElement.closest('.station-exit-button') ||
+      clickedElement.closest('button')
+    ) {
+      return
+    }
+
+    if (activeTutorialStep === 'review-cream-top' && activeRecipe?.creamTop === 'none') {
+      setToppingStationStep('review-powder')
+      return
+    }
+
+    if (activeTutorialStep === 'review-powder' && activeRecipe?.powder === 'none') {
+      setToppingStationStep('send-to-customer')
+    }
+  }
+
   return (
-    <main className="station-page" aria-label="Topping station page">
+    <main className="station-page" aria-label="Topping station page" onClick={handleStageClick}>
       <section className="station-stage">
         <img className="station-background" src={stationTable} alt="" draggable="false" />
         <OrderTicketBoard
@@ -236,15 +345,24 @@ function ToppingStationPage() {
           showOrderTicketText={showOrderTicketText}
           revealedOrderLineCount={revealedOrderLineCount}
           onHistoryTicketClick={swapMainWithHistory}
+          disabled={isStationDockLocked}
         />
+        {tutorialMessage && (
+          <aside className="station-tutorial-message" aria-live="polite">
+            <p>{tutorialMessage}</p>
+            {shouldShowTutorialContinue && (
+              <span className="station-tutorial-next">
+                Click anywhere to continue <b aria-hidden="true">›</b>
+              </span>
+            )}
+          </aside>
+        )}
         <div className="topping-label topping-label-matcha">Matcha</div>
         <div className="topping-label topping-label-vanilla">Vanilla</div>
         <div className="topping-label topping-label-ube">Ube</div>
         <div className="topping-label topping-label-yuzu">Yuzu</div>
         <img
-          className={`topping-cream topping-cream-matcha ${
-            selectedCream === 'matcha' ? 'is-selected' : ''
-          } ${animatingCream === 'matcha' ? 'is-animating' : ''}`}
+          className={getCreamClassName('matcha')}
           src={creamMatcha}
           alt=""
           draggable="false"
@@ -252,9 +370,7 @@ function ToppingStationPage() {
           style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
         <img
-          className={`topping-cream topping-cream-vanilla ${
-            selectedCream === 'vanilla' ? 'is-selected' : ''
-          } ${animatingCream === 'vanilla' ? 'is-animating' : ''}`}
+          className={getCreamClassName('vanilla')}
           src={creamVanilla}
           alt=""
           draggable="false"
@@ -262,9 +378,7 @@ function ToppingStationPage() {
           style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
         <img
-          className={`topping-cream topping-cream-ube ${
-            selectedCream === 'ube' ? 'is-selected' : ''
-          } ${animatingCream === 'ube' ? 'is-animating' : ''}`}
+          className={getCreamClassName('ube')}
           src={creamUbe}
           alt=""
           draggable="false"
@@ -272,9 +386,7 @@ function ToppingStationPage() {
           style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
         <img
-          className={`topping-cream topping-cream-yuzu ${
-            selectedCream === 'yuzu' ? 'is-selected' : ''
-          } ${animatingCream === 'yuzu' ? 'is-animating' : ''}`}
+          className={getCreamClassName('yuzu')}
           src={creamYuzu}
           alt=""
           draggable="false"
@@ -283,9 +395,7 @@ function ToppingStationPage() {
         />
 
         <img
-          className={`topping-powder topping-powder-black-sesame ${
-            selectedPowder === 'black-sesame' ? 'is-selected' : ''
-          } ${animatingPowder === 'black-sesame' ? 'is-animating' : ''}`}
+          className={getPowderClassName('black-sesame')}
           src={powderJar}
           alt=""
           draggable="false"
@@ -293,9 +403,7 @@ function ToppingStationPage() {
           style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
         <img
-          className={`topping-powder topping-powder-hojicha ${
-            selectedPowder === 'hojicha' ? 'is-selected' : ''
-          } ${animatingPowder === 'hojicha' ? 'is-animating' : ''}`}
+          className={getPowderClassName('hojicha')}
           src={powderJar}
           alt=""
           draggable="false"
@@ -303,9 +411,7 @@ function ToppingStationPage() {
           style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
         <img
-          className={`topping-powder topping-powder-kinako ${
-            selectedPowder === 'kinako' ? 'is-selected' : ''
-          } ${animatingPowder === 'kinako' ? 'is-animating' : ''}`}
+          className={getPowderClassName('kinako')}
           src={powderJar}
           alt=""
           draggable="false"
@@ -313,9 +419,7 @@ function ToppingStationPage() {
           style={{ cursor: toppingInteractCursor, pointerEvents: 'auto' }}
         />
         <img
-          className={`topping-powder topping-powder-matcha ${
-            selectedPowder === 'matcha' ? 'is-selected' : ''
-          } ${animatingPowder === 'matcha' ? 'is-animating' : ''}`}
+          className={getPowderClassName('matcha')}
           src={powderJar}
           alt=""
           draggable="false"
@@ -338,14 +442,16 @@ function ToppingStationPage() {
         {showReadyButton && (
           <button
             type="button"
-            className="station-ready-button"
+            className={`station-ready-button${
+              activeTutorialStep === 'send-to-customer' ? ' is-tutorial-highlight' : ''
+            }`}
             aria-label="Ready"
             onClick={handleReadyClick}
           >
             <img src={readyButton} alt="" draggable={false} />
           </button>
         )}
-        <StationDock currentStation="topping" />
+        <StationDock currentStation="topping" disabled={isStationDockLocked} />
       </section>
     </main>
   )

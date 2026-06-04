@@ -50,9 +50,9 @@ const ORDER_STATION_TUTORIAL_MESSAGES: Record<
   string
 > = {
   welcome:
-    'Welcome to Mama\'s Matcharia! Since our store went viral on MikMok the other day, lots of bruins are readily lining up at our store eager to try our matcha.',
-  'take-order': 'When a bruin finally makes it to the door, click on them to take their order.',
-  'customer-talking': 'Wow, this bruin really likes to yap.',
+    'Welcome to Mama\'s Matcharia! Since our store went viral on MikMok the other day, lots of Bruins are readily lining up at our store eager to try our matcha.',
+  'take-order': 'When a Bruin finally makes it to the door, click on them to take their order.',
+  'customer-talking': 'Wow, this Bruin really likes to yap.',
   'order-ticket':
     'Our first customer\'s order is written on this order ticket. When you have multiple active orders, you can toggle between them by clicking on the desired order ticket in the top bar. Now feel free to take more orders, or get to making your first drink!',
 }
@@ -109,7 +109,7 @@ function OrderStationPage() {
 
   useEffect(() => {
     tutorialStepRef.current =
-      dayState?.day.mode && dayState.day.mode !== 'multiplayer' ? orderStationStep : null
+      dayState && dayState.day.mode !== 'multiplayer' ? orderStationStep : null
   }, [dayState?.day.mode, orderStationStep])
 
   useEffect(() => {
@@ -242,10 +242,11 @@ function OrderStationPage() {
     ['--order-bear-transition-ms' as string]: `${bearTransitionMs}ms`,
   }
   const activeTutorialStep =
-    dayState?.day.mode && dayState.day.mode !== 'multiplayer' ? orderStationStep : null
+    dayState && dayState.day.mode !== 'multiplayer' ? orderStationStep : null
   const isWelcomeTutorialStep = activeTutorialStep === 'welcome'
   const isInteractionLocked = phase !== 'idle' || activeNpc !== null || isWelcomeTutorialStep
-  const shouldRenderCustomer = activeNpc !== null || waitingNpcs.length > 0
+  const shouldRenderCustomer = activeNpc !== null || (!isWelcomeTutorialStep && waitingNpcs.length > 0)
+  const isCustomerClickable = !isInteractionLocked && waitingNpcs.length > 0
   const tutorialMessage =
     activeTutorialStep && activeTutorialStep !== 'complete'
       ? ORDER_STATION_TUTORIAL_MESSAGES[activeTutorialStep]
@@ -317,7 +318,7 @@ function OrderStationPage() {
         <img className="station-background" src={matchaInterior} alt="" draggable="false" />
         {shouldRenderCustomer && (
           <img
-            className="order-bear-customer"
+            className={`order-bear-customer${isCustomerClickable ? ' is-clickable' : ''}`}
             src={TALKING_BEAR_EXPRESSIONS[bearExpressionIndex]}
             alt=""
             draggable="false"

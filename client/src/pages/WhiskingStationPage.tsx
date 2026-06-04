@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import stationTable from '../assets/station-shared/station-table.png'
 import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
-import readyButton from '../assets/ready_button.png'
 import { useDrinkProgress } from '../DrinkProgressContext'
 import { getCupPreviewSrc, type BaseCupSnapshot } from '../drinkCup'
 import { MATCHA_TIN_TO_GRADE, matchaGradeToTin } from '../utils/drinkMappings'
 import type { BowlMatchaLevel, MatchaTin } from '../stationProgress'
+import { useGameDayContext } from '../GameDayContext'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
 import { useTutorialContext, type WhiskingStationTutorialStep } from '../TutorialContext'
 import emptyBowl from '../assets/whisking-station/empty-bowl.png'
@@ -28,13 +28,16 @@ import matchaTin from '../assets/whisking-station/matcha-tin.png'
 import './StationPage.css'
 
 type SpoonState = 'empty-original' | 'matcha-over-bowl' | 'empty-return'
-type KettleState = 'original' | 'pouring-over-bowl' | 'returning'
+type KettleState = 'original' | 'moving-over-bowl' | 'pouring-over-bowl' | 'returning'
 type WhiskState = 'original' | 'whisking' | 'returning'
 type BowlAnimPhase = 'idle' | 'over-cup' | 'returning'
 
 const BOWL_TRAVEL_MS = 650
 const BOWL_POUR_HOLD_MS = 500
 const BOWL_RETURN_MS = 650
+const KETTLE_TRAVEL_MS = 600
+const KETTLE_POUR_MS = 450
+const KETTLE_RETURN_MS = 600
 
 const WHISKING_STATION_TUTORIAL_MESSAGES: Record<
   Exclude<WhiskingStationTutorialStep, 'complete'>,
@@ -49,12 +52,14 @@ const WHISKING_STATION_TUTORIAL_MESSAGES: Record<
   whisk:
     'Perfect! Now click the whisk to blend the matcha and water together until it\'s smooth and frothy.',
   'pour-into-cup':
-    'Excellent whisking! Now click the bowl to pour the whisked matcha into the cup. Then click the Ready button to send it to the next station.',
+    'Excellent whisking! Now click the bowl to pour the whisked matcha into the cup. Then click the arrow button to send it to the next station.',
+  'go-to-topping': 'Now click Topping Station to keep building the drink.',
 }
 
 function WhiskingStationPage() {
   const { ticketStore, showOrderTicketText, revealedOrderLineCount, swapMainWithHistory } =
     useOrderTicketsContext()
+  const { dayState } = useGameDayContext()
   const { whiskingStationStep, setWhiskingStationStep } = useTutorialContext()
   const {
     drinkAtWhisking,
@@ -73,7 +78,9 @@ function WhiskingStationPage() {
     whiskingStation
 
   const cupWaitingForTopping = Boolean(whiskingCup?.hasBaseDrink)
-  const tutorialStepRef = useRef(whiskingStationStep)
+  const activeTutorialStep =
+    dayState && dayState.day.mode !== 'multiplayer' ? whiskingStationStep : null
+  const tutorialStepRef = useRef<WhiskingStationTutorialStep | null>(activeTutorialStep)
 
 
 
@@ -105,11 +112,10 @@ function WhiskingStationPage() {
   const [departingCup, setDepartingCup] = useState<BaseCupSnapshot | null>(null)
   const pendingTimeoutsRef = useRef<number[]>([])
 
-  useEffect(() => {
-    tutorialStepRef.current = whiskingStationStep
-  }, [whiskingStationStep])
-
   const isBowlAnimating = bowlAnimPhase !== 'idle'
+  const canUseKettle =
+    kettleState === 'original' && bowlMatchaLevel !== 'empty' && !isBowlAnimating
+  const canUseWhisk = whiskState === 'original' && bowlHasWater && !isBowlAnimating
   const canPourIntoCup = Boolean(
     whiskingCup?.hasMilk && !whiskingCup.hasBaseDrink && isWhisked && !isBowlAnimating,
   )
@@ -132,6 +138,10 @@ function WhiskingStationPage() {
   }
 
   useEffect(() => () => clearPendingTimeouts(), [])
+
+  useEffect(() => {
+    tutorialStepRef.current = activeTutorialStep
+  }, [activeTutorialStep])
 
   function incrementMatchaLevel() {
     updateWhiskingStation((prev) => {
@@ -209,8 +219,11 @@ function WhiskingStationPage() {
   }
 
   function handleKettleClick() {
-    if (kettleState !== 'original' || bowlMatchaLevel === 'empty' || isBowlAnimating) return
-    setKettleState('pouring-over-bowl')
+    if (!canUseKettle) return
+    setKettleState('moving-over-bowl')
+    trackTimeout(() => {
+      setKettleState('pouring-over-bowl')
+    }, KETTLE_TRAVEL_MS)
     trackTimeout(() => {
       updateWhiskingStation((prev) => ({
         bowlHasWater: true,
@@ -221,14 +234,14 @@ function WhiskingStationPage() {
       if (tutorialStepRef.current === 'add-water') {
         setWhiskingStationStep('whisk')
       }
-    }, 600)
+    }, KETTLE_TRAVEL_MS + KETTLE_POUR_MS)
     trackTimeout(() => {
       setKettleState('original')
-    }, 1200)
+    }, KETTLE_TRAVEL_MS + KETTLE_POUR_MS + KETTLE_RETURN_MS)
   }
 
   function handleWhiskClick() {
-    if (whiskState !== 'original' || !bowlHasWater || isBowlAnimating) return
+    if (!canUseWhisk) return
     setWhiskState('whisking')
     trackTimeout(() => {
       updateWhiskingStation({ isWhisked: true })
@@ -272,15 +285,15 @@ function WhiskingStationPage() {
   const cupOnStage = whiskingCup ?? departingCup
 
   const tutorialMessage =
-    whiskingStationStep && whiskingStationStep !== 'complete'
-      ? WHISKING_STATION_TUTORIAL_MESSAGES[whiskingStationStep]
+    activeTutorialStep && activeTutorialStep !== 'complete'
+      ? WHISKING_STATION_TUTORIAL_MESSAGES[activeTutorialStep]
       : null
-  const shouldShowTutorialContinue = whiskingStationStep === 'welcome'
-  const isWelcomeTutorialStep = whiskingStationStep === 'welcome'
+  const shouldShowTutorialContinue = activeTutorialStep === 'welcome'
+  const isWelcomeTutorialStep = activeTutorialStep === 'welcome'
   const isInteractionLocked = isWelcomeTutorialStep
 
   function handleStageClick() {
-    if (whiskingStationStep === 'welcome') {
+    if (activeTutorialStep === 'welcome') {
       setWhiskingStationStep('add-matcha')
     }
   }
@@ -298,7 +311,7 @@ function WhiskingStationPage() {
     sendCupToTopping(whiskingCup)
     setCupShooting(true)
     if (tutorialStepRef.current === 'pour-into-cup') {
-      setWhiskingStationStep('complete')
+      setWhiskingStationStep('go-to-topping')
     }
   }
 
@@ -336,13 +349,47 @@ function WhiskingStationPage() {
   }
 
   function getBowlClassName() {
+    const highlightClass =
+      activeTutorialStep === 'pour-into-cup' && canPourIntoCup ? ' is-tutorial-highlight' : ''
+
     if (bowlAnimPhase === 'over-cup') {
-      return 'whisking-empty-bowl whisking-empty-bowl-over-cup'
+      return `whisking-empty-bowl whisking-empty-bowl-over-cup${highlightClass}`
     }
     if (bowlAnimPhase === 'returning') {
-      return 'whisking-empty-bowl whisking-empty-bowl-returning'
+      return `whisking-empty-bowl whisking-empty-bowl-returning${highlightClass}`
     }
-    return 'whisking-empty-bowl'
+    return `whisking-empty-bowl${highlightClass}`
+  }
+
+  function getWhiskClassName() {
+    const baseClass =
+      whiskState === 'whisking'
+        ? 'whisking-whisk-over-bowl whisking-animation'
+        : whiskState === 'returning'
+          ? 'whisking-whisk-over-bowl'
+          : 'whisking-whisk'
+    const shouldHighlight = activeTutorialStep === 'whisk' && canUseWhisk
+    return `${baseClass}${shouldHighlight ? ' is-tutorial-highlight' : ''}`
+  }
+
+  function getKettleClassName() {
+    const baseClass =
+      kettleState === 'original' || kettleState === 'returning'
+        ? 'whisking-kettle'
+        : 'whisking-kettle-over-bowl'
+    const shouldHighlight = activeTutorialStep === 'add-water' && canUseKettle
+    return `${baseClass}${shouldHighlight ? ' is-tutorial-highlight' : ''}`
+  }
+
+  function getMatchaTinClassName(tin: MatchaTin) {
+    const shouldHighlight = activeTutorialStep === 'add-matcha' && !tinIsDisabled(tin)
+    return `whisking-matcha-tin-${tin}${shouldHighlight ? ' is-tutorial-highlight' : ''}`
+  }
+
+  function handleStationNavigate(station: 'order' | 'base' | 'whisking' | 'topping') {
+    if (activeTutorialStep === 'go-to-topping' && station === 'topping') {
+      setWhiskingStationStep('complete')
+    }
   }
 
   return (
@@ -380,18 +427,12 @@ function WhiskingStationPage() {
           style={{ cursor: canPourIntoCup ? 'pointer' : 'default', pointerEvents: 'auto' }}
         />
         <img
-          className={
-            whiskState === 'whisking'
-              ? 'whisking-whisk-over-bowl whisking-animation'
-              : whiskState === 'returning'
-                ? 'whisking-whisk-over-bowl'
-                : 'whisking-whisk'
-          }
+          className={getWhiskClassName()}
           src={whisk}
           alt=""
           draggable="false"
           onClick={handleWhiskClick}
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+          style={{ cursor: canUseWhisk ? 'pointer' : 'default', pointerEvents: 'auto' }}
         />
         <img
           className={
@@ -424,15 +465,15 @@ function WhiskingStationPage() {
           draggable="false"
         />
         <img
-          className={kettleState === 'original' ? 'whisking-kettle' : 'whisking-kettle-over-bowl'}
+          className={getKettleClassName()}
           src={kettleState === 'pouring-over-bowl' ? kettleWater : kettle}
           alt=""
           draggable="false"
           onClick={handleKettleClick}
-          style={{ cursor: 'pointer', pointerEvents: 'auto' }}
+          style={{ cursor: canUseKettle ? 'pointer' : 'default', pointerEvents: 'auto' }}
         />
         <img
-          className="whisking-matcha-tin-1"
+          className={getMatchaTinClassName(1)}
           src={matchaTin}
           alt=""
           draggable="false"
@@ -444,7 +485,7 @@ function WhiskingStationPage() {
           }}
         />
         <img
-          className="whisking-matcha-tin-2"
+          className={getMatchaTinClassName(2)}
           src={matchaTin}
           alt=""
           draggable="false"
@@ -456,7 +497,7 @@ function WhiskingStationPage() {
           }}
         />
         <img
-          className="whisking-matcha-tin-3"
+          className={getMatchaTinClassName(3)}
           src={matchaTin}
           alt=""
           draggable="false"
@@ -479,14 +520,21 @@ function WhiskingStationPage() {
         {showReadyButton && (
           <button
             type="button"
-            className="station-ready-button"
-            aria-label="Ready"
+            className={`station-next-button${
+              activeTutorialStep === 'pour-into-cup' ? ' is-tutorial-highlight' : ''
+            }`}
+            aria-label="Move cup to Topping Station"
             onClick={handleReadyClick}
           >
-            <img src={readyButton} alt="" draggable={false} />
+            <span className="station-next-button__icon" aria-hidden="true" />
           </button>
         )}
-        <StationDock currentStation="whisking" disabled={isInteractionLocked} />
+        <StationDock
+          currentStation="whisking"
+          disabled={isInteractionLocked}
+          highlightedStation={activeTutorialStep === 'go-to-topping' ? 'topping' : null}
+          onStationNavigate={handleStationNavigate}
+        />
       </section>
     </main>
   )
