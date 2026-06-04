@@ -1,0 +1,60 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: mamas-matcharia-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  server:
+    build:
+      context: ./server
+    image: mamas-matcharia-server:local
+    container_name: mamas-matcharia-server
+    env_file:
+      - path: ./docker.env
+        required: false
+    environment:
+      NODE_ENV: development
+      PORT: "5001"
+      MONGO_URI: mongodb://mongo:27017/mamas-matcharia
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./server:/app
+      - server-node-modules:/app/node_modules
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command: npm run dev
+
+  client:
+    build:
+      context: ./client
+    image: mamas-matcharia-client:local
+    container_name: mamas-matcharia-client
+    env_file:
+      - path: ./docker.env
+        required: false
+    environment:
+      VITE_API_BASE_URL: http://localhost:5001
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client:/app
+      - client-node-modules:/app/node_modules
+    depends_on:
+      - server
+    command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  mongo-data:
+  server-node-modules:
+  client-node-modules:
