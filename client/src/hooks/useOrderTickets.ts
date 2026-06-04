@@ -87,6 +87,15 @@ export function useOrderTickets() {
     setRevealedOrderLineCount(ORDER_TICKET_FIELDS.length)
   }, [])
 
+  const resetOrderTickets = useCallback(() => {
+    setTicketStore({
+      mainTicket: null,
+      completedTickets: [],
+    })
+    setShowOrderTicketText(false)
+    setRevealedOrderLineCount(0)
+  }, [])
+
   return {
     ticketStore,
     showOrderTicketText,
@@ -96,5 +105,6 @@ export function useOrderTickets() {
     revealNextLine,
     markOrderFullyRevealed,
     swapMainWithHistory,
+    resetOrderTickets,
   }
 }
