@@ -168,6 +168,9 @@ function OrderStationPage() {
       setBearExpressionIndex(0)
       showGeneratedOrder(nextTicket)
       setPhase('talking')
+      if (tutorialStepRef.current === 'take-order') {
+        setOrderStationStep('customer-talking')
+      }
     }, startTalkingDelayMs)
 
     schedule(() => {
@@ -303,9 +306,6 @@ function OrderStationPage() {
 
     claimWaitingNpc(nextNpc.npcId)
     setActiveNpc(nextNpc)
-    if (activeTutorialStep === 'take-order') {
-      setOrderStationStep('customer-talking')
-    }
   }
 
   return (
@@ -335,7 +335,7 @@ function OrderStationPage() {
             <p>{tutorialMessage}</p>
             {shouldShowTutorialContinue && (
               <span className="station-tutorial-next">
-                Click anywhere to continue <b aria-hidden="true">›</b>
+                Click anywhere to continue
               </span>
             )}
           </aside>
