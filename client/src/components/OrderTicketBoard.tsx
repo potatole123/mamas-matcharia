@@ -11,6 +11,10 @@ type OrderTicketBoardProps = {
 }
 
 function getTicketFieldValue(recipe: Recipe, fieldKey: keyof Omit<Recipe, 'recipeId'>) {
+  if (fieldKey === 'iceLevel' && recipe.iceLevel === 'light') {
+    return 'less'
+  }
+
   if (fieldKey === 'sweetnessLevel' && recipe.sweetener === 'none') {
     return 'none'
   }
