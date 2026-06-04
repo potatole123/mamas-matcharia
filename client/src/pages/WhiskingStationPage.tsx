@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import stationTable from '../assets/station-shared/station-table.png'
 import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
 import { useDrinkProgress } from '../DrinkProgressContext'
 import { getCupPreviewSrc, type BaseCupSnapshot } from '../drinkCup'
 import { MATCHA_TIN_TO_GRADE, matchaGradeToTin } from '../utils/drinkMappings'
-import type { BowlMatchaLevel, MatchaTin } from '../stationProgress'
+import { WHISK_DURATION_MS, type BowlMatchaLevel, type MatchaTin } from '../stationProgress'
 import { useGameDayContext } from '../GameDayContext'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
 import { useTutorialContext, type WhiskingStationTutorialStep } from '../TutorialContext'
@@ -29,7 +29,6 @@ import './StationPage.css'
 
 type SpoonState = 'empty-original' | 'matcha-over-bowl' | 'empty-return'
 type KettleState = 'original' | 'moving-over-bowl' | 'pouring-over-bowl' | 'returning'
-type WhiskState = 'original' | 'whisking' | 'returning'
 type BowlAnimPhase = 'idle' | 'over-cup' | 'returning'
 
 const BOWL_TRAVEL_MS = 650
@@ -38,6 +37,7 @@ const BOWL_RETURN_MS = 650
 const KETTLE_TRAVEL_MS = 600
 const KETTLE_POUR_MS = 450
 const KETTLE_RETURN_MS = 600
+const WHISK_PROGRESS_TICK_MS = 50
 
 const WHISKING_STATION_TUTORIAL_MESSAGES: Record<
   Exclude<WhiskingStationTutorialStep, 'complete'>,
@@ -74,7 +74,7 @@ function WhiskingStationPage() {
     updateWhiskingCup,
     sendCupToTopping,
   } = useDrinkProgress()
-  const { bowlMatchaLevel, bowlHasWater, isWhisked, totalWeight, selectedMatchaTin } =
+  const { bowlMatchaLevel, bowlHasWater, isWhisked, totalWeight, selectedMatchaTin, whiskStartedAt } =
     whiskingStation
 
   const cupWaitingForTopping = Boolean(whiskingCup?.hasBaseDrink)
@@ -106,16 +106,27 @@ function WhiskingStationPage() {
   const [spoon2State, setSpoon2State] = useState<SpoonState>('empty-original')
   const [spoon3State, setSpoon3State] = useState<SpoonState>('empty-original')
   const [kettleState, setKettleState] = useState<KettleState>('original')
-  const [whiskState, setWhiskState] = useState<WhiskState>('original')
   const [bowlAnimPhase, setBowlAnimPhase] = useState<BowlAnimPhase>('idle')
+  const [, setWhiskProgressTick] = useState(0)
   const [cupShooting, setCupShooting] = useState(false)
+  const wasWhiskedRef = useRef(isWhisked)
   const [departingCup, setDepartingCup] = useState<BaseCupSnapshot | null>(null)
   const pendingTimeoutsRef = useRef<number[]>([])
 
   const isBowlAnimating = bowlAnimPhase !== 'idle'
+  const isWhiskBusy = whiskStartedAt !== null
+  const whiskProgress =
+    whiskStartedAt === null
+      ? 0
+      : Math.min(100, ((Date.now() - whiskStartedAt) / WHISK_DURATION_MS) * 100)
   const canUseKettle =
-    kettleState === 'original' && bowlMatchaLevel !== 'empty' && !isBowlAnimating
-  const canUseWhisk = whiskState === 'original' && bowlHasWater && !isBowlAnimating
+    kettleState === 'original' &&
+    bowlMatchaLevel !== 'empty' &&
+    !isBowlAnimating &&
+    !isWhiskBusy
+  const canUseWhisk =
+    whiskStartedAt === null && bowlHasWater && !isBowlAnimating && !isWhisked
+  const canUseMatchaTins = !isBowlAnimating && !isWhiskBusy
   const canPourIntoCup = Boolean(
     whiskingCup?.hasMilk && !whiskingCup.hasBaseDrink && isWhisked && !isBowlAnimating,
   )
@@ -143,6 +154,23 @@ function WhiskingStationPage() {
     tutorialStepRef.current = activeTutorialStep
   }, [activeTutorialStep])
 
+  useEffect(() => {
+    if (whiskStartedAt === null) {
+      return
+    }
+    const intervalId = window.setInterval(() => {
+      setWhiskProgressTick((tick) => tick + 1)
+    }, WHISK_PROGRESS_TICK_MS)
+    return () => window.clearInterval(intervalId)
+  }, [whiskStartedAt])
+
+  useEffect(() => {
+    if (!wasWhiskedRef.current && isWhisked && tutorialStepRef.current === 'whisk') {
+      setWhiskingStationStep('pour-into-cup')
+    }
+    wasWhiskedRef.current = isWhisked
+  }, [isWhisked, setWhiskingStationStep])
+
   function incrementMatchaLevel() {
     updateWhiskingStation((prev) => {
       const level = prev.bowlMatchaLevel
@@ -164,6 +192,7 @@ function WhiskingStationPage() {
         bowlMatchaLevel: nextLevel,
         totalWeight: prev.totalWeight + 1,
         isWhisked: false,
+        whiskStartedAt: null,
       }
     })
   }
@@ -188,7 +217,8 @@ function WhiskingStationPage() {
     spoonState: SpoonState,
     setSpoonState: (state: SpoonState) => void,
   ) {
-    if (spoonState !== 'empty-original' || bowlMatchaLevel === '4' || isBowlAnimating) return
+    if (spoonState !== 'empty-original' || bowlMatchaLevel === '4' || isBowlAnimating || isWhiskBusy)
+      return
     if (!canUseMatchaTin(tin)) return
 
     if (!selectedMatchaTin) {
@@ -215,7 +245,7 @@ function WhiskingStationPage() {
   }
 
   function tinIsDisabled(tin: MatchaTin) {
-    return !canUseMatchaTin(tin) || isBowlAnimating
+    return !canUseMatchaTins || !canUseMatchaTin(tin)
   }
 
   function handleKettleClick() {
@@ -229,6 +259,7 @@ function WhiskingStationPage() {
         bowlHasWater: true,
         totalWeight: prev.totalWeight + 60,
         isWhisked: false,
+        whiskStartedAt: null,
       }))
       setKettleState('returning')
       if (tutorialStepRef.current === 'add-water') {
@@ -242,17 +273,7 @@ function WhiskingStationPage() {
 
   function handleWhiskClick() {
     if (!canUseWhisk) return
-    setWhiskState('whisking')
-    trackTimeout(() => {
-      updateWhiskingStation({ isWhisked: true })
-      setWhiskState('returning')
-      if (tutorialStepRef.current === 'whisk') {
-        setWhiskingStationStep('pour-into-cup')
-      }
-    }, 2000)
-    trackTimeout(() => {
-      setWhiskState('original')
-    }, 2600)
+    updateWhiskingStation({ whiskStartedAt: Date.now() })
   }
 
   function handleBowlClick() {
@@ -273,6 +294,7 @@ function WhiskingStationPage() {
         isWhisked: false,
         totalWeight: 0,
         selectedMatchaTin: null,
+        whiskStartedAt: null,
       })
       clearBenchMatcha()
       setBowlAnimPhase('returning')
@@ -321,6 +343,20 @@ function WhiskingStationPage() {
     setDepartingCup(null)
   }
 
+  function getWhiskingCupPreviewClassName(cup: BaseCupSnapshot) {
+    const phase = cup.hasBaseDrink
+      ? 'base'
+      : cup.hasMilk
+        ? 'milk'
+        : cup.iceLevel !== 'none'
+          ? `ice-${cup.iceLevel}`
+          : 'empty'
+
+    return `whisking-cup-preview whisking-cup-preview--${cup.size} whisking-cup-preview--${cup.size}-${phase}${
+      cupShooting ? ' is-shooting' : ''
+    }`
+  }
+
   function getBowlImage() {
     if (isWhisked) {
       return whiskedMatcha
@@ -362,14 +398,19 @@ function WhiskingStationPage() {
   }
 
   function getWhiskClassName() {
-    const baseClass =
-      whiskState === 'whisking'
-        ? 'whisking-whisk-over-bowl whisking-animation'
-        : whiskState === 'returning'
-          ? 'whisking-whisk-over-bowl'
-          : 'whisking-whisk'
+    const baseClass = isWhiskBusy
+      ? 'whisking-whisk-over-bowl whisking-animation'
+      : 'whisking-whisk'
     const shouldHighlight = activeTutorialStep === 'whisk' && canUseWhisk
     return `${baseClass}${shouldHighlight ? ' is-tutorial-highlight' : ''}`
+  }
+
+  function getWhiskAnimationStyle(): CSSProperties | undefined {
+    if (!isWhiskBusy || whiskStartedAt === null) {
+      return undefined
+    }
+    const elapsedSeconds = (Date.now() - whiskStartedAt) / 1000
+    return { animationDelay: `-${elapsedSeconds}s` }
   }
 
   function getKettleClassName() {
@@ -405,6 +446,24 @@ function WhiskingStationPage() {
         />
         <img className="matcha-scale" src={matchaScaleZero} alt="" draggable="false" />
         <div className="bowl-weight-display">{totalWeight}g</div>
+        {whiskStartedAt !== null && (
+          <div
+            className="whisking-progress"
+            role="progressbar"
+            aria-valuenow={Math.round(whiskProgress)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Whisking matcha progress"
+          >
+            <span className="whisking-progress__label">Whisking matcha</span>
+            <div className="whisking-progress__track">
+              <div
+                className="whisking-progress__fill"
+                style={{ width: `${whiskProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
         <div className="regular-label">Regular</div>
         <div className="premium-label">Premium</div>
         <div className="ultra-label">Ultra</div>
@@ -432,7 +491,11 @@ function WhiskingStationPage() {
           alt=""
           draggable="false"
           onClick={handleWhiskClick}
-          style={{ cursor: canUseWhisk ? 'pointer' : 'default', pointerEvents: 'auto' }}
+          style={{
+            cursor: canUseWhisk ? 'pointer' : 'default',
+            pointerEvents: 'auto',
+            ...getWhiskAnimationStyle(),
+          }}
         />
         <img
           className={
@@ -510,7 +573,7 @@ function WhiskingStationPage() {
         />
         {cupOnStage && (
           <img
-            className={`whisking-cup-preview whisking-cup-preview--${cupOnStage.size}${cupShooting ? ' is-shooting' : ''}`}
+            className={getWhiskingCupPreviewClassName(cupOnStage)}
             src={getCupPreviewSrc(cupOnStage)}
             alt=""
             draggable="false"

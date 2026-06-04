@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { BaseCupSnapshot } from './drinkCup'
 import { DrinkProgressContext, type StationSlot } from './DrinkProgressContext'
 import { useGameDayContext } from './GameDayContext'
@@ -13,6 +13,7 @@ import { createDrinkOrderSubmission } from './utils/buildMadeRecipe'
 import {
   INITIAL_BASE_STATION,
   INITIAL_WHISKING_STATION,
+  WHISK_DURATION_MS,
   type BaseStationState,
   type WhiskingStationState,
 } from './stationProgress'
@@ -166,6 +167,29 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
 
   /** Bowl/bench is shared; a cup at the station can wait for topping while you prep the next batch here. */
   const whiskingStation = standaloneWhiskingStation
+
+  useEffect(() => {
+    const startedAt = standaloneWhiskingStation.whiskStartedAt
+    if (!startedAt || standaloneWhiskingStation.isWhisked) {
+      return
+    }
+
+    const remainingMs = WHISK_DURATION_MS - (Date.now() - startedAt)
+    const timeoutId = window.setTimeout(() => {
+      setStandaloneWhiskingStation((prev) => {
+        if (!prev.whiskStartedAt || prev.isWhisked) {
+          return prev
+        }
+        return {
+          ...prev,
+          isWhisked: true,
+          whiskStartedAt: null,
+        }
+      })
+    }, Math.max(0, remainingMs))
+
+    return () => window.clearTimeout(timeoutId)
+  }, [standaloneWhiskingStation.whiskStartedAt, standaloneWhiskingStation.isWhisked])
 
   const updateWhiskingStation = useCallback(
     (
