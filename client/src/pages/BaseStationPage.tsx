@@ -229,6 +229,19 @@ function BaseStationPage() {
     return getCupPreviewSrc(cupVisualOnStage)
   }
 
+  function getCupPreviewClassName() {
+    const size = cupVisualOnStage?.size ?? 'small'
+    const phase = cupVisualOnStage?.hasMilk
+      ? 'milk'
+      : cupVisualOnStage?.iceLevel && cupVisualOnStage.iceLevel !== 'none'
+        ? `ice-${cupVisualOnStage.iceLevel}`
+        : 'empty'
+
+    return `base-cup-preview base-cup-preview--${size} base-cup-preview--${size}-${phase}${
+      cupShooting ? ' is-shooting' : ''
+    }`
+  }
+
   function handleCupSizeChoice(size: DrinkSize) {
     createDrinkAtBase(size)
     if (tutorialStepRef.current === 'choose-cup') {
@@ -733,7 +746,7 @@ function BaseStationPage() {
         )}
         {(showCupOnBase || departingCup) && (
           <img
-            className={`base-cup-preview${cupShooting ? ' is-shooting' : ''}`}
+            className={getCupPreviewClassName()}
             src={getCupPreviewImage()}
             alt=""
             draggable="false"

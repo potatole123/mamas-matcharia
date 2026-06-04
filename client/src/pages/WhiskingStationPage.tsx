@@ -343,6 +343,20 @@ function WhiskingStationPage() {
     setDepartingCup(null)
   }
 
+  function getWhiskingCupPreviewClassName(cup: BaseCupSnapshot) {
+    const phase = cup.hasBaseDrink
+      ? 'base'
+      : cup.hasMilk
+        ? 'milk'
+        : cup.iceLevel !== 'none'
+          ? `ice-${cup.iceLevel}`
+          : 'empty'
+
+    return `whisking-cup-preview whisking-cup-preview--${cup.size} whisking-cup-preview--${cup.size}-${phase}${
+      cupShooting ? ' is-shooting' : ''
+    }`
+  }
+
   function getBowlImage() {
     if (isWhisked) {
       return whiskedMatcha
@@ -559,7 +573,7 @@ function WhiskingStationPage() {
         />
         {cupOnStage && (
           <img
-            className={`whisking-cup-preview whisking-cup-preview--${cupOnStage.size}${cupShooting ? ' is-shooting' : ''}`}
+            className={getWhiskingCupPreviewClassName(cupOnStage)}
             src={getCupPreviewSrc(cupOnStage)}
             alt=""
             draggable="false"
