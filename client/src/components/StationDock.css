@@ -1,3 +1,49 @@
+.station-exit-button {
+  position: absolute;
+  top: 3.5%;
+  left: 3.5%;
+  z-index: 40;
+  width: 5.2%;
+  max-width: 3.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    filter 120ms ease,
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.station-exit-button:disabled {
+  cursor: default;
+  opacity: 0.68;
+}
+
+.station-exit-button img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  pointer-events: none;
+}
+
+.station-exit-button:hover:not(:disabled) {
+  filter: brightness(1.06);
+  transform: translateY(-3%);
+}
+
+.station-exit-button:active:not(:disabled) {
+  filter: brightness(0.96);
+  transform: translateY(2%);
+}
+
+.station-exit-button:focus-visible {
+  outline: clamp(2px, 0.22vw, 4px) solid #f8f3cf;
+  outline-offset: clamp(2px, 0.3vw, 5px);
+  border-radius: 999px;
+}
+
 .station-dock {
   position: absolute;
   left: 50%;

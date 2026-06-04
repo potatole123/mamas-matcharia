@@ -8,6 +8,7 @@ import { getCupPreviewSrc, type BaseCupSnapshot } from '../drinkCup'
 import { MATCHA_TIN_TO_GRADE, matchaGradeToTin } from '../utils/drinkMappings'
 import type { BowlMatchaLevel, MatchaTin } from '../stationProgress'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
+import { useTutorialContext, type WhiskingStationTutorialStep } from '../TutorialContext'
 import emptyBowl from '../assets/whisking-station/empty-bowl.png'
 import bowlWithMatcha1 from '../assets/whisking-station/bowl-with-matcha-1.png'
 import bowlWithMatcha2 from '../assets/whisking-station/bowl-with-matcha-2.png'
@@ -35,9 +36,26 @@ const BOWL_TRAVEL_MS = 650
 const BOWL_POUR_HOLD_MS = 500
 const BOWL_RETURN_MS = 650
 
+const WHISKING_STATION_TUTORIAL_MESSAGES: Record<
+  Exclude<WhiskingStationTutorialStep, 'complete'>,
+  string
+> = {
+  welcome:
+    'Welcome to the whisking station! Here you\'ll prepare the matcha base for your drinks. Let\'s learn how to make a perfect cup of matcha.',
+  'add-matcha':
+    'First, click on one of the matcha tins (Regular, Premium, or Ultra) to add 1g of matcha powder to the bowl. The order ticket shows which grade you need. You will need around 3g-4g of matcha powder for a regular matcha.',
+  'add-water':
+    'Great! Now click the kettle to pour hot water into the bowl with the matcha powder. Every pour will be 60g of water.',
+  whisk:
+    'Perfect! Now click the whisk to blend the matcha and water together until it\'s smooth and frothy.',
+  'pour-into-cup':
+    'Excellent whisking! Now click the bowl to pour the whisked matcha into the cup. Then click the Ready button to send it to the next station.',
+}
+
 function WhiskingStationPage() {
   const { ticketStore, showOrderTicketText, revealedOrderLineCount, swapMainWithHistory } =
     useOrderTicketsContext()
+  const { whiskingStationStep, setWhiskingStationStep } = useTutorialContext()
   const {
     drinkAtWhisking,
     drinkAtTopping,
@@ -55,6 +73,9 @@ function WhiskingStationPage() {
     whiskingStation
 
   const cupWaitingForTopping = Boolean(whiskingCup?.hasBaseDrink)
+  const tutorialStepRef = useRef(whiskingStationStep)
+
+
 
   function getLockedMatchaTin(): MatchaTin | null {
     if (selectedMatchaTin) {
@@ -83,6 +104,10 @@ function WhiskingStationPage() {
   const [cupShooting, setCupShooting] = useState(false)
   const [departingCup, setDepartingCup] = useState<BaseCupSnapshot | null>(null)
   const pendingTimeoutsRef = useRef<number[]>([])
+
+  useEffect(() => {
+    tutorialStepRef.current = whiskingStationStep
+  }, [whiskingStationStep])
 
   const isBowlAnimating = bowlAnimPhase !== 'idle'
   const canPourIntoCup = Boolean(
@@ -161,6 +186,10 @@ function WhiskingStationPage() {
     }
     setMatchaGradeFromTin(tin)
     runSpoonCycle(setSpoonState)
+
+    if (tutorialStepRef.current === 'add-matcha' && totalWeight >= 2) {
+      setWhiskingStationStep('add-water')
+    }
   }
 
   function handleMatchaTin1Click() {
@@ -189,6 +218,9 @@ function WhiskingStationPage() {
         isWhisked: false,
       }))
       setKettleState('returning')
+      if (tutorialStepRef.current === 'add-water') {
+        setWhiskingStationStep('whisk')
+      }
     }, 600)
     trackTimeout(() => {
       setKettleState('original')
@@ -201,6 +233,9 @@ function WhiskingStationPage() {
     trackTimeout(() => {
       updateWhiskingStation({ isWhisked: true })
       setWhiskState('returning')
+      if (tutorialStepRef.current === 'whisk') {
+        setWhiskingStationStep('pour-into-cup')
+      }
     }, 2000)
     trackTimeout(() => {
       setWhiskState('original')
@@ -236,6 +271,20 @@ function WhiskingStationPage() {
 
   const cupOnStage = whiskingCup ?? departingCup
 
+  const tutorialMessage =
+    whiskingStationStep && whiskingStationStep !== 'complete'
+      ? WHISKING_STATION_TUTORIAL_MESSAGES[whiskingStationStep]
+      : null
+  const shouldShowTutorialContinue = whiskingStationStep === 'welcome'
+  const isWelcomeTutorialStep = whiskingStationStep === 'welcome'
+  const isInteractionLocked = isWelcomeTutorialStep
+
+  function handleStageClick() {
+    if (whiskingStationStep === 'welcome') {
+      setWhiskingStationStep('add-matcha')
+    }
+  }
+
   function handleReadyClick() {
     if (
       !drinkAtWhisking ||
@@ -248,6 +297,9 @@ function WhiskingStationPage() {
     setDepartingCup(whiskingCup)
     sendCupToTopping(whiskingCup)
     setCupShooting(true)
+    if (tutorialStepRef.current === 'pour-into-cup') {
+      setWhiskingStationStep('complete')
+    }
   }
 
   function handleCupShootAnimationEnd() {
@@ -294,7 +346,7 @@ function WhiskingStationPage() {
   }
 
   return (
-    <main className="station-page" aria-label="Whisking station page">
+    <main className="station-page" aria-label="Whisking station page" onClick={handleStageClick}>
       <section className="station-stage">
         <img className="station-background" src={stationTable} alt="" draggable="false" />
         <OrderTicketBoard
@@ -302,12 +354,23 @@ function WhiskingStationPage() {
           showOrderTicketText={showOrderTicketText}
           revealedOrderLineCount={revealedOrderLineCount}
           onHistoryTicketClick={swapMainWithHistory}
+          disabled={isInteractionLocked}
         />
         <img className="matcha-scale" src={matchaScaleZero} alt="" draggable="false" />
         <div className="bowl-weight-display">{totalWeight}g</div>
         <div className="regular-label">Regular</div>
         <div className="premium-label">Premium</div>
         <div className="ultra-label">Ultra</div>
+        {tutorialMessage && (
+          <aside className="station-tutorial-message" aria-live="polite">
+            <p>{tutorialMessage}</p>
+            {shouldShowTutorialContinue && (
+              <span className="station-tutorial-next">
+                Click anywhere to continue <b aria-hidden="true">›</b>
+              </span>
+            )}
+          </aside>
+        )}
         <img
           className={getBowlClassName()}
           src={getBowlImage()}
@@ -423,7 +486,7 @@ function WhiskingStationPage() {
             <img src={readyButton} alt="" draggable={false} />
           </button>
         )}
-        <StationDock currentStation="whisking" />
+        <StationDock currentStation="whisking" disabled={isInteractionLocked} />
       </section>
     </main>
   )

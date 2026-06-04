@@ -314,7 +314,7 @@
 .station-order-ticket-wrap {
   position: absolute;
   top: 3%;
-  right: 3.2%;
+  right: 0.4%;
   width: 24%;
   z-index: 5;
 }
@@ -367,8 +367,8 @@
 .order-ticket-history {
   position: absolute;
   top: 4.4%;
-  left: 2.8%;
-  right: 31%;
+  left: 13.2%;
+  right: 20.6%;
   display: flex;
   align-items: flex-start;
   gap: 1.2%;
@@ -1011,7 +1011,7 @@
 
 .base-heater {
   left: 16%;
-  top: 18%;
+  top: 20%;
   width: 25%;
   z-index: 3;
 }
@@ -1032,7 +1032,7 @@
 
 .base-pitcher.base-pitcher-at-heater {
   left: 22%;
-  top: 24%;
+  top: 26%;
   width: 13%;
   z-index: 20;
 }
@@ -1069,32 +1069,32 @@
 
 .base-flavor-strawberry {
   left: 38%;
-  top: 14%;
+  top: 16%;
 }
 
 .base-flavor-mango {
   left: 48%;
-  top: 14%;
+  top: 16%;
 }
 
 .base-flavor-pandan {
   left: 58%;
-  top: 14%;
+  top: 16%;
 }
 
 .base-sweetener-honey {
   left: 39%;
-  top: 34%;
+  top: 36%;
 }
 
 .base-sweetener-agave {
   left: 49%;
-  top: 34%;
+  top: 36%;
 }
 
 .base-sweetener-equal {
   left: 59%;
-  top: 34%;
+  top: 36%;
 }
 
 .base-flavor.is-selected,
@@ -1221,32 +1221,32 @@
 
 .base-label-flavor-strawberry {
   left: 42.5%;
-  top: 33%;
+  top: 35%;
 }
 
 .base-label-flavor-mango {
   left: 53.5%;
-  top: 33%;
+  top: 35%;
 }
 
 .base-label-flavor-pandan {
   left: 63.5%;
-  top: 33%;
+  top: 35%;
 }
 
 .base-label-sweetener-honey {
   left: 43.5%;
-  top: 47%;
+  top: 49%;
 }
 
 .base-label-sweetener-agave {
   left: 53.5%;
-  top: 47%;
+  top: 49%;
 }
 
 .base-label-sweetener-equal {
   left: 63.5%;
-  top: 47%;
+  top: 49%;
 }
 
 .base-label[class*='base-label-milk'] {
