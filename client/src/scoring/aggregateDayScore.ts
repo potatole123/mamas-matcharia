@@ -2,9 +2,13 @@ import type { OrderScoreResult } from '../types/drinkSubmission'
 
 export type DayScorePayload = OrderScoreResult
 
+function roundToCents(amount: number) {
+  return Math.round(amount * 100) / 100
+}
+
 /** Sum per-order scores into one day payload for POST /api/game/results. */
 export function aggregateOrderScores(scores: OrderScoreResult[]): DayScorePayload {
-  return scores.reduce(
+  const totals = scores.reduce(
     (totals, score) => ({
       waitingScore: totals.waitingScore + score.waitingScore,
       accuracyScore: totals.accuracyScore + score.accuracyScore,
@@ -22,4 +26,9 @@ export function aggregateOrderScores(scores: OrderScoreResult[]): DayScorePayloa
       tipsEarned: 0,
     },
   )
+
+  return {
+    ...totals,
+    tipsEarned: roundToCents(totals.tipsEarned),
+  }
 }

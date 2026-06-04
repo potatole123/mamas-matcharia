@@ -34,7 +34,7 @@ function getStarCount(totalScore: number, targetScore: number) {
 
 function GameSummary() {
   const navigate = useNavigate()
-  const { getIdToken } = useAuth()
+  const { getIdToken, updateProfile } = useAuth()
   const { dayState, resetDay } = useGameDayContext()
   const { resetTickets } = useOrderTicketsContext()
   const { orderScoresByOrderId, resetAllStationProgress } = useDrinkProgress()
@@ -61,6 +61,7 @@ function GameSummary() {
         throw new Error('Authentication token is unavailable')
       }
       const response = await submitDayScoreToBackend(dayScore, token)
+      updateProfile(response.profile)
       setSubmitResponse(response)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not submit day score'
@@ -68,7 +69,7 @@ function GameSummary() {
     } finally {
       setIsSubmitting(false)
     }
-  }, [dayScore, getIdToken, scoreList.length])
+  }, [dayScore, getIdToken, scoreList.length, updateProfile])
 
   useEffect(() => {
     if (hasSubmittedRef.current || scoreList.length === 0) {

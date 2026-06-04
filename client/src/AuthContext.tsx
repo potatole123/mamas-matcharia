@@ -45,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     getIdToken,
+    updateProfile,
   }
 
   useEffect(() => {
@@ -192,6 +193,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function getIdToken() {
     return auth?.currentUser?.getIdToken() ?? Promise.resolve(null)
+  }
+
+  function updateProfile(nextProfile: AuthProfile | null) {
+    setProfile(nextProfile)
+    if (nextProfile) {
+      setUsername(nextProfile.displayName)
+    }
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
