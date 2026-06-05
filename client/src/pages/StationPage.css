@@ -1684,39 +1684,35 @@
   font-weight: 700;
 }
 
-.station-freeplay-banner {
-  position: absolute;
-  top: 3.5%;
-  left: 50%;
-  z-index: 8;
-  margin: 0;
-  transform: translateX(-50%);
-  color: #fffdb8;
-  font-family: 'Slate Black';
-  font-size: clamp(1.1rem, 2.2vw, 2rem);
-  letter-spacing: 0.06em;
-  text-shadow:
-    0 0.08em 0 #6f361e,
-    0 0.15em 0.25em rgb(54 25 15 / 45%);
-  pointer-events: none;
-}
-
 .station-level-banner {
   position: absolute;
   left: 50%;
   bottom: 18%;
   z-index: 7;
   margin: 0;
+  padding: clamp(0.5rem, 1vw, 0.8rem) clamp(1rem, 2vw, 1.5rem);
   transform: translateX(-50%);
-  color: #fffdb8;
+  border: 0.1rem solid #2E3D17;
+  border-radius: 0.65rem;
+  background: #D8D2A7;
+  box-shadow: 0 0.45rem 1rem rgb(61 36 18 / 20%);
+  color: #2E3D17;
   font-family: 'Slate Black';
-  font-size: clamp(2rem, 4vw, 4.5rem);
-  letter-spacing: 0.08em;
-  text-shadow:
-    0 0.08em 0 #6f361e,
-    0 0.15em 0.25em rgb(54 25 15 / 45%);
+  font-size: clamp(1.35rem, 2.8vw, 2.75rem);
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  text-shadow: none;
   animation: station-level-banner 3s ease-out forwards;
   pointer-events: none;
+}
+
+.station-freeplay-intro {
+  white-space: nowrap;
+}
+
+.station-freeplay-message {
+  top: 6%;
 }
 
 .station-tutorial-message {
