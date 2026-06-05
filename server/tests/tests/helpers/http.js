@@ -39,9 +39,9 @@ export async function api(path, options = {}) {
 
 export function expectErrorPayload(json) {
   expect(json).toEqual(
-    expect.objectContaining({
-      error: expect.any(String)
-    })
+      expect.objectContaining({
+        error: expect.any(String)
+      })
   );
   expect(json.error.length).toBeGreaterThan(0);
 }
@@ -59,24 +59,24 @@ export function expectUserProfilePayload(json, user) {
 
 export function expectUserPayload(json, user) {
   expect(json).toEqual(
-    expect.objectContaining({
-      email: user.email.toLowerCase(),
-      userId: expect.any(String),
-      username: user.username
-    })
+      expect.objectContaining({
+        email: user.email.toLowerCase(),
+        userId: expect.any(String),
+        username: user.username
+      })
   );
 }
 
 export function expectProfilePayload(json, expected = {}) {
   expect(json).toEqual(
-    expect.objectContaining({
-      coinBalance: expect.any(Number),
-      displayName: expect.any(String),
-      highestDayUnlocked: expect.any(Number),
-      tutorialCompleted: expect.any(Boolean),
-      userId: expect.any(String),
-      ...expected
-    })
+      expect.objectContaining({
+        coinBalance: expect.any(Number),
+        displayName: expect.any(String),
+        highestDayUnlocked: expect.any(Number),
+        tutorialCompleted: expect.any(Boolean),
+        userId: expect.any(String),
+        ...expected
+      })
   );
 
   if (json.createdAt !== undefined) {
@@ -90,4 +90,75 @@ export function expectProfilePayload(json, expected = {}) {
 export function expectIsoTimestamp(value) {
   expect(value).toEqual(expect.any(String));
   expect(Number.isNaN(Date.parse(value))).toBe(false);
+}
+
+export function expectGameSessionPayload(json, expected = {}) {
+  expect(json).toEqual(
+      expect.objectContaining({
+        activeGame: expect.any(String),
+        activeGameModel: expect.stringMatching(/^(SinglePlayerGameState|MultiplayerGameState)$/),
+        activeLevel: null,
+        profile: expect.any(String),
+        sessionId: expect.any(String),
+        ...expected
+      })
+  );
+
+  expectIsoTimestamp(json.createdAt);
+  expectIsoTimestamp(json.updatedAt);
+}
+
+export function expectGameplaySessionPayload(json, expected = {}) {
+  expect(json).toEqual(
+      expect.objectContaining({
+        activeGame: expect.anything(),
+        activeGameModel: expect.stringMatching(/^(SinglePlayerGameState|MultiplayerGameState)$/),
+        activeLevel: null,
+        id: expect.any(String),
+        profile: expect.any(Object),
+        ...expected
+      })
+  );
+
+  expectIsoTimestamp(json.createdAt);
+  expectIsoTimestamp(json.updatedAt);
+}
+
+export function expectSinglePlayerGamePayload(json, expected = {}) {
+  expect(json).toEqual(
+      expect.objectContaining({
+        gameId: expect.any(String),
+        npcSeed: expect.any(Number),
+        playerId: expect.any(String),
+        results: expect.any(Array),
+        session: expect.any(String),
+        ...expected
+      })
+  );
+
+  expectIsoTimestamp(json.createdAt);
+  expectIsoTimestamp(json.updatedAt);
+}
+
+export function expectMultiplayerGamePayload(json, expected = {}) {
+  expect(json).toEqual(
+      expect.objectContaining({
+        creatorId: expect.any(String),
+        gameId: expect.any(String),
+        groupCode: expect.stringMatching(/^\d{6}$/),
+        npcSeed: expect.any(Number),
+        playerIds: expect.any(Array),
+        ranking: expect.any(Array),
+        results: expect.any(Array),
+        session: expect.any(String),
+        ...expected
+      })
+  );
+
+  expect(json).toHaveProperty("startedAt");
+  if (json.startedAt !== null) {
+    expectIsoTimestamp(json.startedAt);
+  }
+  expectIsoTimestamp(json.createdAt);
+  expectIsoTimestamp(json.updatedAt);
 }
