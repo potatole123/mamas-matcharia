@@ -174,6 +174,9 @@ function OrderStationPage() {
       setBearExpressionIndex(0)
       showGeneratedOrder(nextTicket)
       setPhase('talking')
+      if (tutorialStepRef.current === 'take-order') {
+        setOrderStationStep('customer-talking')
+      }
     }, startTalkingDelayMs)
 
     schedule(() => {
@@ -308,9 +311,6 @@ function OrderStationPage() {
 
     claimWaitingNpc(nextNpc.npcId)
     setActiveNpc(nextNpc)
-    if (activeTutorialStep === 'take-order') {
-      setOrderStationStep('customer-talking')
-    }
   }
 
   return (
@@ -332,7 +332,7 @@ function OrderStationPage() {
         )}
         <img className="order-counter" src={orderCounter} alt="" draggable="false" />
         <img className="order-bearista" src={bearista} alt="" draggable="false" />
-        {isLevelBannerVisible && dayState && (
+        {isLevelBannerVisible && dayState && dayState.day.mode !== 'multiplayer' && (
           <p className="station-level-banner">Level {dayState.day.level}</p>
         )}
         {tutorialMessage && (
@@ -340,7 +340,7 @@ function OrderStationPage() {
             <p>{tutorialMessage}</p>
             {shouldShowTutorialContinue && (
               <span className="station-tutorial-next">
-                Click anywhere to continue <b aria-hidden="true">›</b>
+                Click anywhere to continue
               </span>
             )}
           </aside>

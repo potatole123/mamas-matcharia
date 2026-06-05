@@ -12,6 +12,7 @@ import {
   type RecipeSetInput,
 } from "../gameProgression"
 import { CustomerOrderModel } from "../models/customerOrder"
+import type { DayResults } from "../models/dayResults"
 import { NPCModel, type NPC } from "../models/npc"
 import { RecipeModel, type Recipe } from "../models/recipe"
 import { RecipeSetModel } from "../models/recipeSet"
@@ -195,6 +196,15 @@ function choose<T>(values: readonly T[], random: () => number) {
   return values[Math.floor(random() * values.length)] as T
 }
 
+type MultiplayerResultEntry = {
+  playerId: string
+  displayName: string
+  submitted: boolean
+  rank: number | null
+  isWinner: boolean
+  result: ReturnType<typeof toPlainDayResult> | null
+}
+
 function chooseSweetnessLevel(
     sweetener: Sweetener,
     sweetnessLevelSet: readonly SweetnessLevel[],
@@ -209,9 +219,61 @@ function chooseSweetnessLevel(
   )
 
   return choose(
-      measuredSweetnessLevels.length > 0 ? measuredSweetnessLevels : sweetnessLevelSet,
+      measuredSweetnessLevels.length > 0
+        ? measuredSweetnessLevels
+        : (["perfect"] as const),
       random,
   )
+}
+
+function chooseIceLevelForTemp(
+    temp: (typeof TEMP)[number],
+    iceLevelSet: readonly (typeof ICE_LEVEL)[number][],
+    random: () => number,
+) {
+  if (temp === "hot") {
+    return "none"
+  }
+
+  const icedLevels = iceLevelSet.filter((iceLevel) => iceLevel !== "none")
+  return choose(icedLevels.length > 0 ? icedLevels : (["regular"] as const), random)
+}
+
+function normalizeRecipeSemantics(recipe: {
+  temp: (typeof TEMP)[number]
+  iceLevel: (typeof ICE_LEVEL)[number]
+  matcha: (typeof MATCHA)[number] | "super premium"
+  sweetener: Sweetener
+  sweetnessLevel: SweetnessLevel
+}) {
+  let changed = false
+
+  if (recipe.matcha === "super premium") {
+    recipe.matcha = "ultra"
+    changed = true
+  }
+
+  if (recipe.temp === "hot" && recipe.iceLevel !== "none") {
+    recipe.iceLevel = "none"
+    changed = true
+  }
+
+  if (recipe.temp === "iced" && recipe.iceLevel === "none") {
+    recipe.iceLevel = "regular"
+    changed = true
+  }
+
+  if (recipe.sweetener === "none" && recipe.sweetnessLevel !== "none") {
+    recipe.sweetnessLevel = "none"
+    changed = true
+  }
+
+  if (recipe.sweetener !== "none" && recipe.sweetnessLevel === "none") {
+    recipe.sweetnessLevel = "perfect"
+    changed = true
+  }
+
+  return changed
 }
 
 function hashStringToNumber(value: string) {
@@ -230,12 +292,13 @@ function buildRecipe(
     random: () => number,
 ): Omit<Recipe, "createdAt" | "updatedAt"> {
   const sweetener = choose(recipeSet.sweetenerSet, random)
+  const temp = choose(recipeSet.tempSet, random)
 
   return {
     recipeId,
     cupSize: choose(recipeSet.cupSizeSet, random),
-    temp: choose(recipeSet.tempSet, random),
-    iceLevel: choose(recipeSet.iceLevelSet, random),
+    temp,
+    iceLevel: chooseIceLevelForTemp(temp, recipeSet.iceLevelSet, random),
     matcha: choose(recipeSet.matchaSet, random),
     milk: choose(recipeSet.milkSet, random),
     flavor: choose(recipeSet.flavorSet, random),
@@ -256,16 +319,14 @@ async function getOrCreateRecipe(
   const existingRecipe = await RecipeModel.findOne({ recipeId: recipe.recipeId })
 
   if (existingRecipe) {
-    if (
-        existingRecipe.sweetener === "none" &&
-        existingRecipe.sweetnessLevel !== "none"
-    ) {
-      existingRecipe.sweetnessLevel = "none"
+    if (normalizeRecipeSemantics(existingRecipe)) {
       await existingRecipe.save()
     }
 
     return existingRecipe
   }
+
+  normalizeRecipeSemantics(recipe)
 
   try {
     return await RecipeModel.create(recipe)
@@ -599,6 +660,113 @@ function serializeMultiplayerGame(game: {
   }
 }
 
+function toPlainDayResult(result: DayResults) {
+  return {
+    ...(result.playerId ? { playerId: result.playerId } : {}),
+    ...(result.playerDisplayName
+      ? { playerDisplayName: result.playerDisplayName }
+      : {}),
+    level: result.level,
+    waitingScore: result.waitingScore,
+    accuracyScore: result.accuracyScore,
+    measurementScore: result.measurementScore,
+    toppingScore: result.toppingScore,
+    totalScore: result.totalScore,
+    tipsEarned: result.tipsEarned,
+    passed: result.passed,
+    completedAt: result.completedAt,
+  }
+}
+
+async function serializeMultiplayerResults(game: {
+  _id: unknown
+  creatorId: string
+  playerIds: string[]
+  results: DayResults[]
+  groupCode: string
+  ranking: string[]
+  startedAt?: Date | null
+}) {
+  const profiles = await ProfileModel.find({
+    userId: {
+      $in: game.playerIds,
+    },
+  }).select("userId displayName")
+  const displayNamesByPlayerId = new Map(
+      profiles.map((profile) => [profile.userId, profile.displayName]),
+  )
+  const resultsByPlayerId = new Map(
+      game.results
+          .filter((result) => result.playerId)
+          .map((result) => [result.playerId as string, result]),
+  )
+  const submittedResults = game.results
+      .filter((result) => result.playerId)
+      .sort((left, right) => {
+        if (right.totalScore !== left.totalScore) {
+          return right.totalScore - left.totalScore
+        }
+
+        return (
+          new Date(left.completedAt).getTime() -
+          new Date(right.completedAt).getTime()
+        )
+      })
+  const ranksByPlayerId = new Map<string, number>()
+  let previousScore: number | null = null
+  let currentRank = 0
+
+  submittedResults.forEach((result, index) => {
+    if (previousScore === null || result.totalScore !== previousScore) {
+      currentRank = index + 1
+      previousScore = result.totalScore
+    }
+
+    if (result.playerId) {
+      ranksByPlayerId.set(result.playerId, currentRank)
+    }
+  })
+
+  const entries: MultiplayerResultEntry[] = game.playerIds.map((playerId) => {
+    const result = resultsByPlayerId.get(playerId) ?? null
+    const rank = ranksByPlayerId.get(playerId) ?? null
+
+    return {
+      playerId,
+      displayName: displayNamesByPlayerId.get(playerId) ?? "Player",
+      submitted: Boolean(result),
+      rank,
+      isWinner: rank === 1,
+      result: result ? toPlainDayResult(result) : null,
+    }
+  })
+
+  entries.sort((left, right) => {
+    if (left.rank !== null && right.rank !== null) {
+      return left.rank - right.rank
+    }
+    if (left.rank !== null) {
+      return -1
+    }
+    if (right.rank !== null) {
+      return 1
+    }
+    return game.playerIds.indexOf(left.playerId) - game.playerIds.indexOf(right.playerId)
+  })
+
+  return {
+    gameId: String(game._id),
+    groupCode: game.groupCode,
+    creatorId: game.creatorId,
+    playerCount: game.playerIds.length,
+    submittedCount: submittedResults.length,
+    allSubmitted: submittedResults.length === game.playerIds.length,
+    startedAt: game.startedAt ?? null,
+    ranking: game.ranking,
+    players: entries,
+  }
+}
+
 async function getActiveGameInfo(session: {
   activeGame?: unknown
   activeGameModel?: string | null
@@ -686,6 +854,8 @@ async function appendDayResult(
       activeGameModel?: string | null
     },
     dayResult: {
+      playerId?: string
+      playerDisplayName?: string
       level: number
       waitingScore: number
       accuracyScore: number
@@ -710,10 +880,49 @@ async function appendDayResult(
   }
 
   if (session.activeGameModel === "MultiplayerGameState") {
+    if (!dayResult.playerId) {
+      return
+    }
+
     await MultiplayerGameStateModel.updateOne(
         { _id: session.activeGame },
-        { $push: { results: dayResult } },
+        {
+          $pull: {
+            results: {
+              playerId: dayResult.playerId,
+            },
+          },
+        },
     )
+
+    const game = await MultiplayerGameStateModel.findByIdAndUpdate(
+        session.activeGame,
+        {
+          $push: {
+            results: dayResult,
+          },
+        },
+        { new: true },
+    )
+
+    if (!game) {
+      return
+    }
+
+    game.ranking = game.results
+        .filter((result) => result.playerId)
+        .sort((left, right) => {
+          if (right.totalScore !== left.totalScore) {
+            return right.totalScore - left.totalScore
+          }
+
+          return (
+            new Date(left.completedAt).getTime() -
+            new Date(right.completedAt).getTime()
+          )
+        })
+        .map((result) => result.playerId as string)
+    await game.save()
   }
 }
 
@@ -1144,6 +1353,12 @@ export const joinMultiplayerGame: RequestHandler = async (req, res) => {
       })
     }
 
+    if (game.startedAt) {
+      return res.status(409).json({
+        error: "Multiplayer game has already started",
+      })
+    }
+
     if (
         !game.playerIds.includes(userId) &&
         game.playerIds.length >= MAX_MULTIPLAYER_PLAYERS
@@ -1203,8 +1418,19 @@ export const joinMultiplayerGame: RequestHandler = async (req, res) => {
       })
     }
 
-    const updatedGame = await MultiplayerGameStateModel.findByIdAndUpdate(
-        game._id,
+    const updatedGame = await MultiplayerGameStateModel.findOneAndUpdate(
+        {
+          _id: game._id,
+          startedAt: null,
+          $or: [
+            { playerIds: userId },
+            {
+              $expr: {
+                $lt: [{ $size: "$playerIds" }, MAX_MULTIPLAYER_PLAYERS],
+              },
+            },
+          ],
+        },
         {
           $addToSet: {
             playerIds: userId,
@@ -1216,6 +1442,20 @@ export const joinMultiplayerGame: RequestHandler = async (req, res) => {
     )
 
     if (!updatedGame) {
+      const latestGame = await MultiplayerGameStateModel.findById(game._id)
+
+      if (latestGame?.startedAt) {
+        return res.status(409).json({
+          error: "Multiplayer game has already started",
+        })
+      }
+
+      if (latestGame && latestGame.playerIds.length >= MAX_MULTIPLAYER_PLAYERS) {
+        return res.status(409).json({
+          error: "Multiplayer game is full",
+        })
+      }
+
       return res.status(404).json({
         error: "Multiplayer game was not found",
       })
@@ -1307,6 +1547,60 @@ export const startMultiplayerGame: RequestHandler = async (req, res) => {
     console.error(err)
     return res.status(500).json({
       error: "Could not start multiplayer game",
+    })
+  }
+}
+
+export const getCurrentMultiplayerResults: RequestHandler = async (req, res) => {
+  const userId = req.user?.uid
+
+  if (!userId) {
+    return res.status(401).json({
+      error: "Unauthorized",
+    })
+  }
+
+  try {
+    const profile = await ProfileModel.findOne({ userId })
+
+    if (!profile) {
+      return res.status(404).json({
+        error: "User profile was not found",
+      })
+    }
+
+    const session = await SessionModel.findOne({ profile: profile._id })
+
+    if (
+        !session?.activeGame ||
+        session.activeGameModel !== "MultiplayerGameState"
+    ) {
+      return res.status(409).json({
+        error: "User does not have an active multiplayer game",
+      })
+    }
+
+    const game = await MultiplayerGameStateModel.findById(session.activeGame)
+
+    if (!game) {
+      return res.status(404).json({
+        error: "Multiplayer game was not found",
+      })
+    }
+
+    if (!game.playerIds.includes(userId)) {
+      return res.status(403).json({
+        error: "User is not in this multiplayer game",
+      })
+    }
+
+    return res.status(200).json({
+      results: await serializeMultiplayerResults(game),
+    })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({
+      error: "Could not get multiplayer results",
     })
   }
 }
@@ -1420,6 +1714,14 @@ export const leaveMultiplayerGame: RequestHandler = async (req, res) => {
       return res.sendStatus(204)
     }
 
+    if (game.startedAt) {
+      session.activeGame = null
+      session.activeGameModel = null
+      session.activeLevel = null
+      await session.save()
+      return res.sendStatus(204)
+    }
+
     await Promise.all([
       MultiplayerGameStateModel.updateOne(
           { _id: game._id },
@@ -1501,25 +1803,37 @@ export const submitGameResults: RequestHandler = async (req, res) => {
       const unlockedNextLevel =
           canUpdateProgression && passed && level === profile.highestDayUnlocked
 
-      profile.coinBalance = roundCurrencyAmount(profile.coinBalance + dayScore.tipsEarned)
+      if (canUpdateProgression) {
+        profile.coinBalance = roundCurrencyAmount(profile.coinBalance + dayScore.tipsEarned)
 
-      if (level === 1 && !profile.tutorialCompleted) {
-        profile.tutorialCompleted = true
-      }
+        if (level === 1 && !profile.tutorialCompleted) {
+          profile.tutorialCompleted = true
+        }
 
-      if (unlockedNextLevel) {
-        profile.highestDayUnlocked = level + 1
-      }
+        if (unlockedNextLevel) {
+          profile.highestDayUnlocked = level + 1
+        }
 
-      if (unlockedNextLevel || !profile.recipeSet) {
-        await updateProfileRecipeSet(profile)
+        if (unlockedNextLevel || !profile.recipeSet) {
+          await updateProfileRecipeSet(profile)
+        }
+
+        await profile.save()
       }
 
       session.activeLevel = null
-      await profile.save()
       await session.save()
       await profile.populate("recipeSet")
+      const resultIdentity =
+          activeGame.mode === "multiplayer"
+            ? {
+                playerId: userId,
+                playerDisplayName: profile.displayName,
+              }
+            : {}
+
       await appendDayResult(session, {
+        ...resultIdentity,
         level,
         ...dayScore,
         passed,
