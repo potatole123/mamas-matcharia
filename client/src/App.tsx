@@ -17,6 +17,7 @@ import { GameDayProvider } from './GameDayProvider'
 import { OrderTicketsProvider } from './OrderTicketsProvider'
 import { TutorialProvider } from './TutorialProvider'
 import { DrinkProgressProvider } from './DrinkProgressProvider'
+import BackgroundMusic from './components/BackgroundMusic'
 import './App.css'
 
 type ProtectedRouteProps = {
@@ -48,6 +49,7 @@ function App() {
         <OrderTicketsProvider>
           <DrinkProgressProvider>
             <div className="app-shell">
+              <BackgroundMusic />
               <Routes>
                 <Route
                   path="/"

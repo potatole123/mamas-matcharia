@@ -1,0 +1,51 @@
+.background-music-toggle {
+  --game-stage-width: min(100vw, calc(100svh * 6844 / 5100));
+  --game-stage-height: calc(var(--game-stage-width) * 5100 / 6844);
+
+  position: fixed;
+  left: calc((100vw - var(--game-stage-width)) / 2 + var(--game-stage-width) * 0.035);
+  top: calc((100svh - var(--game-stage-height)) / 2 + var(--game-stage-height) * 0.102);
+  z-index: 50;
+  width: calc(var(--game-stage-width) * 0.052);
+  max-width: 3.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    filter 120ms ease,
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+
+.background-music-toggle img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  pointer-events: none;
+}
+
+.background-music-toggle:not(.is-muted) {
+  filter: brightness(1.08);
+}
+
+.background-music-toggle.is-muted {
+  opacity: 0.92;
+}
+
+.background-music-toggle:hover {
+  filter: brightness(1.12);
+  transform: translateY(-3%);
+}
+
+.background-music-toggle:active {
+  filter: brightness(0.96);
+  transform: translateY(2%);
+}
+
+.background-music-toggle:focus-visible {
+  outline: clamp(2px, 0.22vw, 4px) solid #f8f3cf;
+  outline-offset: clamp(2px, 0.3vw, 5px);
+  border-radius: 999px;
+}
