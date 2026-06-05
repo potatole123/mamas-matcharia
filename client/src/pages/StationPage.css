@@ -167,6 +167,47 @@
   transition: width 50ms linear;
 }
 
+.base-heating-progress {
+  position: absolute;
+  left: 22%;
+  top: 38%;
+  transform: translateX(-50%);
+  z-index: 21;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  width: min(28%, 220px);
+  min-width: min(9rem, 42vw);
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.5rem;
+  background: rgb(255 250 240 / 94%);
+  border: 0.12rem solid #6d4023;
+  box-shadow: 0 0.35rem 0.75rem rgb(61 36 18 / 22%);
+  pointer-events: none;
+}
+
+.base-heating-progress__label {
+  font-size: clamp(0.62rem, 1vw, 0.82rem);
+  font-weight: 700;
+  color: #4f2514;
+  text-align: center;
+}
+
+.base-heating-progress__track {
+  overflow: hidden;
+  height: clamp(0.45rem, 0.75vw, 0.65rem);
+  border-radius: 999px;
+  background: rgb(79 37 20 / 18%);
+}
+
+.base-heating-progress__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #e8a04a 0%, #c46b2a 100%);
+  transition: width 50ms linear;
+}
+
 @keyframes whisk-zigzag {
   0%, 100% {
     transform: translate(-30%, 0%) rotate(0deg);
