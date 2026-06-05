@@ -124,14 +124,13 @@ function OrderStationPage() {
       return
     }
 
-    const showBannerTimeoutId = window.setTimeout(() => setIsLevelBannerVisible(true), 0)
+    setIsLevelBannerVisible(true)
     const hideBannerTimeoutId = window.setTimeout(
       () => setIsLevelBannerVisible(false),
       LEVEL_BANNER_DURATION_MS,
     )
 
     return () => {
-      window.clearTimeout(showBannerTimeoutId)
       window.clearTimeout(hideBannerTimeoutId)
     }
   }, [consumeLevelBanner, dayState])

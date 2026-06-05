@@ -206,7 +206,9 @@ function BaseStationPage() {
       activeTutorialStep !== 'go-to-whisking',
   )
   const isCupSizeEnabled = !activeTutorialStep || activeTutorialStep === 'complete' || activeTutorialStep === 'choose-cup'
-  const isIceBucketEnabled = !activeTutorialStep || activeTutorialStep === 'complete' || activeTutorialStep === 'add-ice'
+  const isIceBucketEnabled =
+    !cupHasMilk &&
+    (!activeTutorialStep || activeTutorialStep === 'complete' || activeTutorialStep === 'add-ice')
   const isMilkEnabled = !activeTutorialStep || activeTutorialStep === 'complete' || activeTutorialStep === 'add-milk'
   const isPitcherEnabled = !activeTutorialStep || activeTutorialStep === 'complete' || activeTutorialStep === 'heat-milk'
   const isFlavorEnabled = !activeTutorialStep || activeTutorialStep === 'complete' || activeTutorialStep === 'review-flavor'
@@ -520,7 +522,7 @@ function BaseStationPage() {
 
   function handleIceBucketClick() {
     if (!isIceBucketEnabled) return
-    if (!drinkAtBase || isStationAnimating || iceLevel === 'regular') return
+    if (!drinkAtBase || isStationAnimating || cupHasMilk || iceLevel === 'regular') return
     runIceScoopAnimation(iceLevel === 'light' ? 'regular' : 'light')
   }
 
@@ -683,7 +685,11 @@ function BaseStationPage() {
           onClick={handleIceBucketClick}
           style={{
             cursor:
-              isIceBucketEnabled && drinkAtBase && !isStationAnimating && iceLevel !== 'regular'
+              isIceBucketEnabled &&
+              drinkAtBase &&
+              !isStationAnimating &&
+              !cupHasMilk &&
+              iceLevel !== 'regular'
                 ? 'pointer'
                 : 'default',
             pointerEvents: isIceBucketEnabled ? 'auto' : 'none',
