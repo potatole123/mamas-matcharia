@@ -23,8 +23,8 @@ const FREE_PLAY_DAY_STATE: StartGameDayResponse = {
   npcs: [],
 }
 
-const MIN_SPAWN_INTERVAL_MULTIPLIER = 0.5
-const SPAWN_INTERVAL_MULTIPLIER_RANGE = 1
+const MIN_NPC_SPAWN_INTERVAL_SECONDS = 10
+const MAX_NPC_SPAWN_INTERVAL_SECONDS = 60
 
 type GameplaySessionResponse = {
   session: {
@@ -39,6 +39,25 @@ function makeSeededRandom(seed: number) {
     state = (1664525 * state + 1013904223) >>> 0
     return state / 0x100000000
   }
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value))
+}
+
+function getSpawnIntervalSeconds(randomValue: number, targetAverageSeconds: number) {
+  const intervalRange = MAX_NPC_SPAWN_INTERVAL_SECONDS - MIN_NPC_SPAWN_INTERVAL_SECONDS
+  const targetAverage = clamp(
+    Number.isFinite(targetAverageSeconds) ? targetAverageSeconds : 15,
+    MIN_NPC_SPAWN_INTERVAL_SECONDS + 0.001,
+    MAX_NPC_SPAWN_INTERVAL_SECONDS,
+  )
+  const randomExponent = intervalRange / (targetAverage - MIN_NPC_SPAWN_INTERVAL_SECONDS) - 1
+
+  return (
+    MIN_NPC_SPAWN_INTERVAL_SECONDS +
+    intervalRange * randomValue ** randomExponent
+  )
 }
 
 function createDrink(npc: ScheduledNpc): Drink {
@@ -59,6 +78,7 @@ export function useGameDay() {
   const [drinksByOrderId, setDrinksByOrderId] = useState<Record<number, Drink>>({})
   const [dayStartError, setDayStartError] = useState<string | null>(null)
   const [isStartingDay, setIsStartingDay] = useState(false)
+  const dayStateRef = useRef<StartGameDayResponse | null>(null)
   const spawnTimeoutsRef = useRef<number[]>([])
   const startDayPromiseRef = useRef<Promise<StartGameDayResponse | null> | null>(null)
   const activeUserIdRef = useRef(user?.uid)
@@ -76,6 +96,7 @@ export function useGameDay() {
     clearSpawnTimeouts()
     startDayPromiseRef.current = null
     activeModeRef.current = null
+    dayStateRef.current = null
     setDayState(null)
     setWaitingNpcs([])
     setDrinksByOrderId({})
@@ -110,6 +131,7 @@ export function useGameDay() {
       clearSpawnTimeouts()
       activeModeRef.current = dayPayload.day.mode
       shouldShowLevelBannerRef.current = dayPayload.day.mode !== 'multiplayer'
+      dayStateRef.current = dayPayload
       setDayState(dayPayload)
       setWaitingNpcs([])
       setDrinksByOrderId({})
@@ -119,15 +141,23 @@ export function useGameDay() {
 
       dayPayload.npcs.forEach((npc, index) => {
         if (index > 0) {
-          const intervalMultiplier =
-            MIN_SPAWN_INTERVAL_MULTIPLIER + random() * SPAWN_INTERVAL_MULTIPLIER_RANGE
-          elapsedMs += dayPayload.day.npcFrequencySeconds * intervalMultiplier * 1000
+          const spawnIntervalSeconds = getSpawnIntervalSeconds(
+            random(),
+            dayPayload.day.npcFrequencySeconds,
+          )
+          elapsedMs += spawnIntervalSeconds * 1000
         }
 
         const scheduledNpc: ScheduledNpc = {
           ...npc,
           orderNumber: index + 1,
         }
+
+        if (index === 0) {
+          spawnNpc(scheduledNpc)
+          return
+        }
+
         const timeoutId = window.setTimeout(() => spawnNpc(scheduledNpc), elapsedMs)
         spawnTimeoutsRef.current.push(timeoutId)
       })
@@ -148,6 +178,7 @@ export function useGameDay() {
     clearSpawnTimeouts()
     startDayPromiseRef.current = null
     setDayStartError(null)
+    dayStateRef.current = FREE_PLAY_DAY_STATE
     setDayState(FREE_PLAY_DAY_STATE)
     setWaitingNpcs([])
     setDrinksByOrderId({})
@@ -160,7 +191,7 @@ export function useGameDay() {
       return Promise.resolve(null)
     }
 
-    if (dayState) {
+    if (dayStateRef.current) {
       return Promise.resolve(null)
     }
 
@@ -211,7 +242,7 @@ export function useGameDay() {
 
     startDayPromiseRef.current = startPromise
     return startPromise
-  }, [dayState, getRequiredIdToken, scheduleNpcs])
+  }, [getRequiredIdToken, scheduleNpcs])
 
   const claimWaitingNpc = useCallback((npcId: number) => {
     setWaitingNpcs((currentNpcs) => currentNpcs.filter((npc) => npc.npcId !== npcId))
