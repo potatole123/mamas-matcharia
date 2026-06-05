@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import stationTable from '../assets/station-shared/station-table.png'
 import OrderTicketBoard from '../components/OrderTicketBoard'
 import StationDock from '../components/StationDock'
@@ -409,14 +409,6 @@ function WhiskingStationPage() {
     return `${baseClass}${shouldHighlight ? ' is-tutorial-highlight' : ''}`
   }
 
-  function getWhiskAnimationStyle(): CSSProperties | undefined {
-    if (!isWhiskBusy || whiskStartedAt === null) {
-      return undefined
-    }
-    const elapsedSeconds = (Date.now() - whiskStartedAt) / 1000
-    return { animationDelay: `-${elapsedSeconds}s` }
-  }
-
   function getKettleClassName() {
     const baseClass =
       kettleState === 'original' || kettleState === 'returning'
@@ -500,7 +492,6 @@ function WhiskingStationPage() {
           style={{
             cursor: canUseWhisk ? 'pointer' : 'default',
             pointerEvents: 'auto',
-            ...getWhiskAnimationStyle(),
           }}
         />
         <img
