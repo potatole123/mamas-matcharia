@@ -284,6 +284,20 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
     setStationSlots((prev) => ({ ...prev, topping: null }))
   }, [drinkAtTopping])
 
+  const finishFreePlayDrink = useCallback(() => {
+    if (!drinkAtTopping) {
+      return
+    }
+
+    const drinkId = drinkAtTopping.id
+    setDrinks((prev) => {
+      const next = { ...prev }
+      delete next[drinkId]
+      return next
+    })
+    setStationSlots((prev) => ({ ...prev, topping: null }))
+  }, [drinkAtTopping])
+
   const submitDrinkWithOrder = useCallback(
     (ticket: TicketData): DrinkOrderSubmission | null => {
       if (!drinkAtTopping) {
@@ -356,6 +370,7 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
       lastOrderSubmission,
       submitDrinkWithOrder,
       clearToppingCup,
+      finishFreePlayDrink,
       whiskingStation,
       standaloneWhiskingStation,
       benchMatcha,
@@ -370,6 +385,7 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
       clearBenchMatcha,
       standaloneWhiskingStation,
       clearToppingCup,
+      finishFreePlayDrink,
       clearWhiskingCup,
       createDrinkAtBase,
       activePipelineDrink,

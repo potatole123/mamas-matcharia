@@ -13,6 +13,7 @@ import { useOrderTicketsContext } from '../OrderTicketsContext'
 import { useTutorialContext, type OrderStationTutorialStep } from '../TutorialContext'
 import { ORDER_TICKET_FIELDS, type TicketData } from '../hooks/useOrderTickets'
 import type { ScheduledNpc } from '../types/game'
+import { isFreePlayMode, isTutorialGameplayMode } from '../utils/gameMode'
 import './StationPage.css'
 
 type BearPhase = 'idle' | 'spawn' | 'moving' | 'at-counter' | 'talking' | 'exiting'
@@ -101,15 +102,20 @@ function OrderStationPage() {
     timeoutsRef.current = []
   }, [])
 
+  const isFreePlay = isFreePlayMode(dayState?.day)
+
   useEffect(() => {
+    if (isFreePlay) {
+      return
+    }
+
     void startDay().catch((error: unknown) => {
       console.error('Could not start game day', error)
     })
-  }, [startDay])
+  }, [isFreePlay, startDay])
 
   useEffect(() => {
-    tutorialStepRef.current =
-      dayState && dayState.day.mode !== 'multiplayer' ? orderStationStep : null
+    tutorialStepRef.current = isTutorialGameplayMode(dayState?.day) ? orderStationStep : null
   }, [dayState?.day.mode, orderStationStep])
 
   useEffect(() => {
@@ -244,8 +250,7 @@ function OrderStationPage() {
     width: `${customerBearWidthPct}%`,
     ['--order-bear-transition-ms' as string]: `${bearTransitionMs}ms`,
   }
-  const activeTutorialStep =
-    dayState && dayState.day.mode !== 'multiplayer' ? orderStationStep : null
+  const activeTutorialStep = isTutorialGameplayMode(dayState?.day) ? orderStationStep : null
   const isWelcomeTutorialStep = activeTutorialStep === 'welcome'
   const isInteractionLocked = phase !== 'idle' || activeNpc !== null || isWelcomeTutorialStep
   const shouldRenderCustomer = activeNpc !== null || (!isWelcomeTutorialStep && waitingNpcs.length > 0)
@@ -327,8 +332,9 @@ function OrderStationPage() {
         )}
         <img className="order-counter" src={orderCounter} alt="" draggable="false" />
         <img className="order-bearista" src={bearista} alt="" draggable="false" />
-        {isLevelBannerVisible && dayState && dayState.day.mode !== 'multiplayer' && (
-          <p className="station-level-banner">Level {dayState.day.level}</p>
+        {isFreePlay && <p className="station-freeplay-banner">Free play</p>}
+        {isLevelBannerVisible && isTutorialGameplayMode(dayState?.day) && (
+          <p className="station-level-banner">Level {dayState!.day.level}</p>
         )}
         {tutorialMessage && (
           <aside className="station-tutorial-message" aria-live="polite">
@@ -348,13 +354,15 @@ function OrderStationPage() {
             Could not start the game day.
           </p>
         )}
-        <OrderTicketBoard
-          ticketStore={ticketStore}
-          showOrderTicketText={showOrderTicketText}
-          revealedOrderLineCount={revealedOrderLineCount}
-          onHistoryTicketClick={swapMainWithHistory}
-          disabled={isInteractionLocked}
-        />
+        {!isFreePlay && (
+          <OrderTicketBoard
+            ticketStore={ticketStore}
+            showOrderTicketText={showOrderTicketText}
+            revealedOrderLineCount={revealedOrderLineCount}
+            onHistoryTicketClick={swapMainWithHistory}
+            disabled={isInteractionLocked}
+          />
+        )}
         <StationDock currentStation="order" disabled={isInteractionLocked} />
       </section>
     </main>

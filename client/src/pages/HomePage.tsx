@@ -2,6 +2,10 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createMultiplayerGame } from '../api/multiplayer'
 import { useAuth } from '../auth'
+import { useDrinkProgress } from '../DrinkProgressContext'
+import { useGameDayContext } from '../GameDayContext'
+import { useOrderTicketsContext } from '../OrderTicketsContext'
+import { useTutorialContext } from '../TutorialContext'
 import backgroundStart from '../assets/start/background-start.png'
 import logoGameName from '../assets/start/logo-game-name.png'
 import logoLargeCup from '../assets/start/logo-large-cup.png'
@@ -37,8 +41,30 @@ function HomeButton({ label, src, className, onClick, disabled }: HomeButtonProp
 function HomePage() {
   const navigate = useNavigate()
   const { getIdToken, logout } = useAuth()
+  const { resetDay, startFreePlay } = useGameDayContext()
+  const { resetTickets } = useOrderTicketsContext()
+  const { resetAllStationProgress } = useDrinkProgress()
+  const { resetTutorialProgress } = useTutorialContext()
   const [isCreatingMultiplayer, setIsCreatingMultiplayer] = useState(false)
   const [multiplayerError, setMultiplayerError] = useState('')
+
+  function resetGameplayState() {
+    resetDay()
+    resetTickets()
+    resetAllStationProgress()
+    resetTutorialProgress()
+  }
+
+  function handleStartGame() {
+    resetGameplayState()
+    navigate('/order-station')
+  }
+
+  async function handleFreePlay() {
+    resetGameplayState()
+    await startFreePlay()
+    navigate('/base-station')
+  }
 
   async function handleLogout() {
     await logout()
@@ -82,13 +108,13 @@ function HomePage() {
           className="home-start-button"
           label="Start"
           src={startButton}
-          onClick={() => navigate('/order-station')}
+          onClick={handleStartGame}
         />
         <HomeButton
           className="home-freeplay-button"
           label="Free play"
           src={freePlayButton}
-          onClick={() => navigate('/order-station')}
+          onClick={handleFreePlay}
         />
         <HomeButton
           className="home-create-multiplayer-button"
