@@ -58,6 +58,7 @@ export type DrinkProgressContextValue = {
    */
   submitDrinkWithOrder: (ticket: TicketData) => DrinkOrderSubmission | null
   clearToppingCup: () => void
+  finishFreePlayDrink: () => void
   whiskingStation: WhiskingStationState
   /** Matcha grade chosen on whisking bench when no drink is on the station. */
   benchMatcha: Matcha | null

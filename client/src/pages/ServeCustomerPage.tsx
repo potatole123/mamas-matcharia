@@ -12,6 +12,7 @@ import orderCounter from '../assets/order/order-counter.png'
 import { useDrinkProgress } from '../DrinkProgressContext'
 import { useGameDayContext } from '../GameDayContext'
 import { useTutorialContext } from '../TutorialContext'
+import { isFreePlayMode } from '../utils/gameMode'
 import type { OrderScoreResult, ScoredDrinkOrderSubmission } from '../types/drinkSubmission'
 import './StationPage.css'
 
@@ -52,6 +53,12 @@ function ServeCustomerPage() {
   const navigate = useNavigate()
   const { lastOrderSubmission, scoredOrderSubmissions } = useDrinkProgress()
   const { dayState } = useGameDayContext()
+
+  useEffect(() => {
+    if (isFreePlayMode(dayState?.day)) {
+      navigate('/base-station', { replace: true })
+    }
+  }, [dayState?.day, navigate])
   const { hasSeenFirstDrinkCongrats, completeFirstDrinkTutorial } = useTutorialContext()
   const scoredSubmission = findScoredSubmission(scoredOrderSubmissions, lastOrderSubmission?.drinkId)
   const score = scoredSubmission?.score ?? null
@@ -65,7 +72,7 @@ function ServeCustomerPage() {
   const [isScoreRevealed, setIsScoreRevealed] = useState(false)
   const shouldShowFirstDrinkCongrats = Boolean(
     dayState &&
-      dayState.day.mode !== 'multiplayer' &&
+      dayState.day.mode === 'singleplayer' &&
       score &&
       isScoreRevealed &&
       scoredOrderSubmissions.length === 1 &&

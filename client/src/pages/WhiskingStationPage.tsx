@@ -9,6 +9,7 @@ import { WHISK_DURATION_MS, type BowlMatchaLevel, type MatchaTin } from '../stat
 import { useGameDayContext } from '../GameDayContext'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
 import { useTutorialContext, type WhiskingStationTutorialStep } from '../TutorialContext'
+import { isFreePlayMode, isTutorialGameplayMode } from '../utils/gameMode'
 import emptyBowl from '../assets/whisking-station/empty-bowl.png'
 import bowlWithMatcha1 from '../assets/whisking-station/bowl-with-matcha-1.png'
 import bowlWithMatcha2 from '../assets/whisking-station/bowl-with-matcha-2.png'
@@ -78,8 +79,8 @@ function WhiskingStationPage() {
     whiskingStation
 
   const cupWaitingForTopping = Boolean(whiskingCup?.hasBaseDrink)
-  const activeTutorialStep =
-    dayState && dayState.day.mode !== 'multiplayer' ? whiskingStationStep : null
+  const isFreePlay = isFreePlayMode(dayState?.day)
+  const activeTutorialStep = isTutorialGameplayMode(dayState?.day) ? whiskingStationStep : null
   const tutorialStepRef = useRef<WhiskingStationTutorialStep | null>(activeTutorialStep)
 
 
@@ -440,13 +441,16 @@ function WhiskingStationPage() {
     <main className="station-page" aria-label="Whisking station page" onClick={handleStageClick}>
       <section className="station-stage">
         <img className="station-background" src={stationTable} alt="" draggable="false" />
-        <OrderTicketBoard
-          ticketStore={ticketStore}
-          showOrderTicketText={showOrderTicketText}
-          revealedOrderLineCount={revealedOrderLineCount}
-          onHistoryTicketClick={swapMainWithHistory}
-          disabled={isStationDockLocked}
-        />
+        {isFreePlay && <p className="station-freeplay-banner">Free play</p>}
+        {!isFreePlay && (
+          <OrderTicketBoard
+            ticketStore={ticketStore}
+            showOrderTicketText={showOrderTicketText}
+            revealedOrderLineCount={revealedOrderLineCount}
+            onHistoryTicketClick={swapMainWithHistory}
+            disabled={isStationDockLocked}
+          />
+        )}
         <img className="matcha-scale" src={matchaScaleZero} alt="" draggable="false" />
         <div className="bowl-weight-display">{totalWeight}g</div>
         {whiskStartedAt !== null && (

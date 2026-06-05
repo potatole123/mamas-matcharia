@@ -20,7 +20,7 @@ export type ScheduledNpc = Npc & {
 
 export type GameDay = {
   level: number
-  mode: 'singleplayer' | 'multiplayer'
+  mode: 'singleplayer' | 'multiplayer' | 'freeplay'
   gameId: string
   seed: number
   targetScore: number

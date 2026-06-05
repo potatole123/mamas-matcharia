@@ -9,6 +9,7 @@ import { getCupPreviewSrc, type BaseCupSnapshot } from '../drinkCup'
 import { useGameDayContext } from '../GameDayContext'
 import { useOrderTicketsContext } from '../OrderTicketsContext'
 import { useTutorialContext, type ToppingStationTutorialStep } from '../TutorialContext'
+import { isFreePlayMode, isTutorialGameplayMode } from '../utils/gameMode'
 import {
   CREAM_UI_TO_RECIPE,
   POWDER_UI_TO_RECIPE,
@@ -135,7 +136,8 @@ function ToppingStationPage() {
   } = useOrderTicketsContext()
   const { dayState } = useGameDayContext()
   const { toppingStationStep, setToppingStationStep } = useTutorialContext()
-  const { drinkAtTopping, updateDrink, submitDrinkWithOrder } = useDrinkProgress()
+  const { drinkAtTopping, updateDrink, submitDrinkWithOrder, finishFreePlayDrink } =
+    useDrinkProgress()
   const toppingCup = drinkAtTopping?.cupVisual ?? null
   const selectedCream = drinkAtTopping?.recipe.creamTop
     ? CREAM_RECIPE_TO_UI[drinkAtTopping.recipe.creamTop] ?? null
@@ -154,9 +156,10 @@ function ToppingStationPage() {
   const POWDER_ANIMATION_MS = 1800
   const POWDER_PREVIEW_UPDATE_MS = 1450
   const isAnimating = Boolean(animatingCream || animatingPowder)
-  const showReadyButton = Boolean(drinkAtTopping && toppingCup && ticketStore.mainTicket) && !cupShooting
-  const activeTutorialStep =
-    dayState && dayState.day.mode !== 'multiplayer' ? toppingStationStep : null
+  const isFreePlay = isFreePlayMode(dayState?.day)
+  const showReadyButton =
+    Boolean(drinkAtTopping && toppingCup && (isFreePlay || ticketStore.mainTicket)) && !cupShooting
+  const activeTutorialStep = isTutorialGameplayMode(dayState?.day) ? toppingStationStep : null
   const activeRecipe = ticketStore.mainTicket?.recipe ?? null
   const tutorialMessage =
     activeTutorialStep && activeTutorialStep !== 'complete'
@@ -175,7 +178,8 @@ function ToppingStationPage() {
 
   function handleReadyClick() {
     const ticket = ticketStore.mainTicket
-    if (!drinkAtTopping || !toppingCup || !ticket || cupShooting) return
+    if (!drinkAtTopping || !toppingCup || cupShooting) return
+    if (!isFreePlay && !ticket) return
 
     setDepartingServe({
       cup: toppingCup,
@@ -183,22 +187,29 @@ function ToppingStationPage() {
       powder: selectedPowder,
     })
 
-    submitDrinkWithOrder(ticket)
-    consumeTicket(ticket.orderId)
+    if (isFreePlay) {
+      finishFreePlayDrink()
+    } else if (ticket) {
+      submitDrinkWithOrder(ticket)
+      consumeTicket(ticket.orderId)
+      if (tutorialStepRef.current === 'send-to-customer') {
+        setToppingStationStep('complete')
+      }
+    }
 
     clearPendingTimeouts()
     setAnimatingCream(null)
     setAnimatingPowder(null)
     setCupShooting(true)
-    if (tutorialStepRef.current === 'send-to-customer') {
-      setToppingStationStep('complete')
-    }
   }
 
   function handleCupShootAnimationEnd() {
     if (!cupShooting) return
     setCupShooting(false)
     setDepartingServe(null)
+    if (isFreePlay) {
+      return
+    }
     navigate('/serve-customer')
   }
 
@@ -340,13 +351,16 @@ function ToppingStationPage() {
     <main className="station-page" aria-label="Topping station page" onClick={handleStageClick}>
       <section className="station-stage">
         <img className="station-background" src={stationTable} alt="" draggable="false" />
-        <OrderTicketBoard
-          ticketStore={ticketStore}
-          showOrderTicketText={showOrderTicketText}
-          revealedOrderLineCount={revealedOrderLineCount}
-          onHistoryTicketClick={swapMainWithHistory}
-          disabled={isStationDockLocked}
-        />
+        {isFreePlay && <p className="station-freeplay-banner">Free play</p>}
+        {!isFreePlay && (
+          <OrderTicketBoard
+            ticketStore={ticketStore}
+            showOrderTicketText={showOrderTicketText}
+            revealedOrderLineCount={revealedOrderLineCount}
+            onHistoryTicketClick={swapMainWithHistory}
+            disabled={isStationDockLocked}
+          />
+        )}
         {tutorialMessage && (
           <aside className="station-tutorial-message" aria-live="polite">
             <p>{tutorialMessage}</p>

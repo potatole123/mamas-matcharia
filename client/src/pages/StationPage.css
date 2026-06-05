@@ -1643,6 +1643,23 @@
   font-weight: 700;
 }
 
+.station-freeplay-banner {
+  position: absolute;
+  top: 3.5%;
+  left: 50%;
+  z-index: 8;
+  margin: 0;
+  transform: translateX(-50%);
+  color: #fffdb8;
+  font-family: 'Slate Black';
+  font-size: clamp(1.1rem, 2.2vw, 2rem);
+  letter-spacing: 0.06em;
+  text-shadow:
+    0 0.08em 0 #6f361e,
+    0 0.15em 0.25em rgb(54 25 15 / 45%);
+  pointer-events: none;
+}
+
 .station-level-banner {
   position: absolute;
   left: 50%;
