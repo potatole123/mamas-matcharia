@@ -49,3 +49,10 @@
   outline-offset: clamp(2px, 0.3vw, 5px);
   border-radius: 999px;
 }
+
+.background-music-toggle.is-station-layout {
+  left: calc((100vw - var(--game-stage-width)) / 2 + var(--game-stage-width) * 0.03);
+  top: calc((100svh - var(--game-stage-height)) / 2 + var(--game-stage-height) * 0.118);
+  width: calc(var(--game-stage-width) * 0.063);
+  max-width: 5rem;
+}
