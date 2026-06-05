@@ -441,7 +441,6 @@ function WhiskingStationPage() {
     <main className="station-page" aria-label="Whisking station page" onClick={handleStageClick}>
       <section className="station-stage">
         <img className="station-background" src={stationTable} alt="" draggable="false" />
-        {isFreePlay && <p className="station-freeplay-banner">Free play</p>}
         {!isFreePlay && (
           <OrderTicketBoard
             ticketStore={ticketStore}

@@ -63,6 +63,7 @@ export function useGameDay() {
   const startDayPromiseRef = useRef<Promise<StartGameDayResponse | null> | null>(null)
   const activeUserIdRef = useRef(user?.uid)
   const shouldShowLevelBannerRef = useRef(false)
+  const activeModeRef = useRef<GameDay['mode'] | null>(null)
 
   const clearSpawnTimeouts = useCallback(() => {
     for (const timeoutId of spawnTimeoutsRef.current) {
@@ -74,6 +75,7 @@ export function useGameDay() {
   const resetDay = useCallback(() => {
     clearSpawnTimeouts()
     startDayPromiseRef.current = null
+    activeModeRef.current = null
     setDayState(null)
     setWaitingNpcs([])
     setDrinksByOrderId({})
@@ -106,6 +108,7 @@ export function useGameDay() {
   const scheduleNpcs = useCallback(
     (dayPayload: StartGameDayResponse) => {
       clearSpawnTimeouts()
+      activeModeRef.current = dayPayload.day.mode
       shouldShowLevelBannerRef.current = dayPayload.day.mode !== 'multiplayer'
       setDayState(dayPayload)
       setWaitingNpcs([])
@@ -141,19 +144,22 @@ export function useGameDay() {
   }, [getIdToken])
 
   const startFreePlay = useCallback(() => {
-    if (dayState) {
-      return Promise.resolve(null)
-    }
-
+    activeModeRef.current = 'freeplay'
+    clearSpawnTimeouts()
+    startDayPromiseRef.current = null
     setDayStartError(null)
     setDayState(FREE_PLAY_DAY_STATE)
     setWaitingNpcs([])
     setDrinksByOrderId({})
     shouldShowLevelBannerRef.current = false
     return Promise.resolve(FREE_PLAY_DAY_STATE)
-  }, [dayState])
+  }, [clearSpawnTimeouts])
 
   const startDay = useCallback(() => {
+    if (activeModeRef.current === 'freeplay') {
+      return Promise.resolve(null)
+    }
+
     if (dayState) {
       return Promise.resolve(null)
     }
@@ -183,6 +189,11 @@ export function useGameDay() {
           token,
           body: {},
         })
+
+        if (activeModeRef.current === 'freeplay') {
+          return FREE_PLAY_DAY_STATE
+        }
+
         scheduleNpcs(dayPayload)
         return dayPayload
       } catch (error) {

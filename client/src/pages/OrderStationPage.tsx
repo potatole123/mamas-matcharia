@@ -72,6 +72,7 @@ function OrderStationPage() {
   const [bearTransitionMs, setBearTransitionMs] = useState(0)
   const [activeNpc, setActiveNpc] = useState<ScheduledNpc | null>(null)
   const [isLevelBannerVisible, setIsLevelBannerVisible] = useState(false)
+  const [isFreePlayIntroVisible, setIsFreePlayIntroVisible] = useState(false)
   const { orderStationStep, setOrderStationStep } = useTutorialContext()
   const {
     dayState,
@@ -134,6 +135,23 @@ function OrderStationPage() {
       window.clearTimeout(hideBannerTimeoutId)
     }
   }, [consumeLevelBanner, dayState])
+
+  useEffect(() => {
+    if (!isFreePlay) {
+      return
+    }
+
+    const showIntroTimeoutId = window.setTimeout(() => setIsFreePlayIntroVisible(true), 0)
+    const hideIntroTimeoutId = window.setTimeout(
+      () => setIsFreePlayIntroVisible(false),
+      LEVEL_BANNER_DURATION_MS,
+    )
+
+    return () => {
+      window.clearTimeout(showIntroTimeoutId)
+      window.clearTimeout(hideIntroTimeoutId)
+    }
+  }, [isFreePlay])
 
   useEffect(() => {
     if (!activeNpc) {
@@ -332,7 +350,17 @@ function OrderStationPage() {
         )}
         <img className="order-counter" src={orderCounter} alt="" draggable="false" />
         <img className="order-bearista" src={bearista} alt="" draggable="false" />
-        {isFreePlay && <p className="station-freeplay-banner">Free play</p>}
+        {isFreePlay && isFreePlayIntroVisible && (
+          <p className="station-level-banner station-freeplay-intro">Free play mode</p>
+        )}
+        {isFreePlay && (
+          <aside className="station-tutorial-message station-freeplay-message" aria-live="polite">
+            <p>
+              Welcome to free play mode. There are no customers, so feel free to make whatever
+              drinks you want.
+            </p>
+          </aside>
+        )}
         {isLevelBannerVisible && isTutorialGameplayMode(dayState?.day) && (
           <p className="station-level-banner">Level {dayState!.day.level}</p>
         )}

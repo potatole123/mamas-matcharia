@@ -63,7 +63,7 @@ function HomePage() {
   async function handleFreePlay() {
     resetGameplayState()
     await startFreePlay()
-    navigate('/base-station')
+    navigate('/order-station')
   }
 
   async function handleLogout() {
