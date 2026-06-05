@@ -9,6 +9,7 @@ import bearista from '../assets/order/bearista-cropped.png'
 import drinkLarge from '../assets/order/drink-large.png'
 import drinkSmall from '../assets/order/drink-small.png'
 import orderCounter from '../assets/order/order-counter.png'
+import { useAuth } from '../auth'
 import { useDrinkProgress } from '../DrinkProgressContext'
 import { useGameDayContext } from '../GameDayContext'
 import { useTutorialContext } from '../TutorialContext'
@@ -51,6 +52,7 @@ function findScoredSubmission(
 
 function ServeCustomerPage() {
   const navigate = useNavigate()
+  const { profile } = useAuth()
   const { lastOrderSubmission, scoredOrderSubmissions } = useDrinkProgress()
   const { dayState } = useGameDayContext()
 
@@ -73,6 +75,8 @@ function ServeCustomerPage() {
   const shouldShowFirstDrinkCongrats = Boolean(
     dayState &&
       dayState.day.mode === 'singleplayer' &&
+      dayState.day.level === 1 &&
+      !profile?.tutorialCompleted &&
       score &&
       isScoreRevealed &&
       scoredOrderSubmissions.length === 1 &&
