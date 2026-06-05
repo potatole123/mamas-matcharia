@@ -22,10 +22,12 @@ import { useTutorialContext, type BaseStationTutorialStep } from '../TutorialCon
 import { isFreePlayMode, isTutorialGameplayMode } from '../utils/gameMode'
 import { MILK_CARTON_TO_RECIPE, type MilkCartonOption } from '../utils/drinkMappings'
 import type { IceLevel } from '../../../server/src/types/enums'
-import type {
-  FlavorOption,
-  SweetenerOption,
-  SweetnessLevel,
+import {
+  getMilkHeatProgress,
+  getPitcherAnimPhase,
+  type FlavorOption,
+  type SweetenerOption,
+  type SweetnessLevel,
 } from '../stationProgress'
 import type { Recipe } from '../types/game'
 import './StationPage.css'
@@ -34,7 +36,6 @@ type MilkOption = MilkCartonOption
 type IceSpoonState = 'idle' | 'has-ice' | 'filled-over-cup' | 'empty-return'
 type MilkPourTarget = 'cup' | 'pitcher'
 type MilkAnimPhase = 'idle' | 'over-target' | 'pouring' | 'return'
-type PitcherAnimPhase = 'idle' | 'at-heater' | 'over-cup' | 'pouring' | 'return'
 type SweetenerAnimPhase = 'idle' | 'over-cup' | 'return'
 type FlavorAnimPhase = 'idle' | 'over-cup' | 'return'
 
@@ -47,11 +48,7 @@ const MILK_MOVE_DELAY_MS = 800
 const MILK_POUR_DELAY_MS = 900
 const MILK_RETURN_DELAY_MS = 800
 
-const PITCHER_TO_HEATER_MS = 1500
-const PITCHER_TO_CUP_MS = 800
-const PITCHER_ROTATE_MS = 600
-const PITCHER_POUR_MS = 600
-const PITCHER_RETURN_MS = 800
+const HEAT_PROGRESS_TICK_MS = 50
 const SWEETENER_MOVE_MS = 650
 const SWEETENER_ADD_MS = 450
 const SWEETENER_RETURN_MS = 650
@@ -144,7 +141,7 @@ function BaseStationPage() {
     updateBaseStation,
     sendCupToWhisking,
   } = useDrinkProgress()
-  const { pitcherHasMilk, pitcherMilk } = baseStation
+  const { pitcherHasMilk, pitcherMilk, pitcherHeatJob } = baseStation
   const cupVisual = drinkAtBase?.cupVisual
   const iceLevel = drinkAtBase?.recipe.iceLevel ?? 'none'
   const cupHasIceLevel = cupHasIce(iceLevel)
@@ -165,7 +162,7 @@ function BaseStationPage() {
   const [activeMilk, setActiveMilk] = useState<MilkOption | null>(null)
   const [milkAnimPhase, setMilkAnimPhase] = useState<MilkAnimPhase>('idle')
   const [milkPourTarget, setMilkPourTarget] = useState<MilkPourTarget>('cup')
-  const [pitcherAnimPhase, setPitcherAnimPhase] = useState<PitcherAnimPhase>('idle')
+  const [, setPitcherHeatTick] = useState(0)
   const [activeSweetener, setActiveSweetener] = useState<SweetenerOption | null>(null)
   const [sweetenerAnimPhase, setSweetenerAnimPhase] = useState<SweetenerAnimPhase>('idle')
   const [activeFlavor, setActiveFlavor] = useState<FlavorOption | null>(null)
@@ -175,7 +172,9 @@ function BaseStationPage() {
 
   const isIceAnimating = iceSpoonState !== 'idle'
   const isMilkAnimating = activeMilk !== null
-  const isPitcherAnimating = pitcherAnimPhase !== 'idle'
+  const pitcherAnimPhase = getPitcherAnimPhase(pitcherHeatJob)
+  const milkHeatProgress = getMilkHeatProgress(pitcherHeatJob)
+  const isPitcherAnimating = pitcherHeatJob !== null
   const isSweetenerAnimating = activeSweetener !== null
   const isFlavorAnimating = activeFlavor !== null
   const isStationAnimating =
@@ -217,6 +216,25 @@ function BaseStationPage() {
   useEffect(() => {
     tutorialStepRef.current = activeTutorialStep
   }, [activeTutorialStep])
+
+  useEffect(() => {
+    if (!pitcherHeatJob) {
+      return
+    }
+    const intervalId = window.setInterval(() => {
+      setPitcherHeatTick((tick) => tick + 1)
+    }, HEAT_PROGRESS_TICK_MS)
+    return () => window.clearInterval(intervalId)
+  }, [pitcherHeatJob])
+
+  const prevPitcherHeatJobRef = useRef(pitcherHeatJob)
+  useEffect(() => {
+    const hadJob = prevPitcherHeatJobRef.current
+    if (hadJob && !pitcherHeatJob && cupHasMilk && tutorialStepRef.current === 'heat-milk') {
+      setBaseStationStep('review-flavor')
+    }
+    prevPitcherHeatJobRef.current = pitcherHeatJob
+  }, [pitcherHeatJob, cupHasMilk, setBaseStationStep])
 
   function trackTimeout(callback: () => void, delayMs: number) {
     const timeoutId = window.setTimeout(callback, delayMs)
@@ -508,43 +526,16 @@ function BaseStationPage() {
 
   function handlePitcherClick() {
     if (!isPitcherEnabled) return
-    if (!drinkAtBase || isStationAnimating || !pitcherHasMilk || cupHasMilk) return
+    if (!drinkAtBase || isStationAnimating || !pitcherHasMilk || cupHasMilk || pitcherHeatJob) return
 
-    const milkFromPitcher = pitcherMilk
-    const keepIced = cupHasIceLevel
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setPitcherAnimPhase('at-heater')
-      })
+    updateBaseStation({
+      pitcherHeatJob: {
+        drinkId: drinkAtBase.id,
+        milk: pitcherMilk,
+        keepIced: cupHasIceLevel,
+        startedAt: Date.now(),
+      },
     })
-
-    trackTimeout(() => {
-      setPitcherAnimPhase('over-cup')
-    }, PITCHER_TO_HEATER_MS)
-
-    trackTimeout(() => {
-      setPitcherAnimPhase('pouring')
-    }, PITCHER_TO_HEATER_MS + PITCHER_TO_CUP_MS)
-
-    trackTimeout(() => {
-      updateDrink(drinkAtBase.id, {
-        recipe: {
-          ...(milkFromPitcher ? { milk: milkFromPitcher } : {}),
-          temp: keepIced ? 'iced' : 'hot',
-        },
-        cupVisual: { hasMilk: true },
-      })
-      updateBaseStation({ pitcherHasMilk: false, pitcherMilk: null })
-      setPitcherAnimPhase('return')
-      if (tutorialStepRef.current === 'heat-milk') {
-        setBaseStationStep('review-flavor')
-      }
-    }, PITCHER_TO_HEATER_MS + PITCHER_TO_CUP_MS + PITCHER_ROTATE_MS + PITCHER_POUR_MS)
-
-    trackTimeout(() => {
-      setPitcherAnimPhase('idle')
-    }, PITCHER_TO_HEATER_MS + PITCHER_TO_CUP_MS + PITCHER_ROTATE_MS + PITCHER_POUR_MS + PITCHER_RETURN_MS)
   }
 
   function handleMilkClick(milkId: MilkOption) {
@@ -667,6 +658,24 @@ function BaseStationPage() {
           </div>
         ))}
         <img className="base-heater" src={heater} alt="" draggable="false" />
+        {pitcherAnimPhase === 'at-heater' && (
+          <div
+            className="base-heating-progress"
+            role="progressbar"
+            aria-valuenow={Math.round(milkHeatProgress)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Heating milk progress"
+          >
+            <span className="base-heating-progress__label">Heating milk</span>
+            <div className="base-heating-progress__track">
+              <div
+                className="base-heating-progress__fill"
+                style={{ width: `${milkHeatProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
         <img
           className={`base-ice-bucket${activeTutorialStep === 'add-ice' ? ' is-tutorial-highlight' : ''}`}
           src={iceBucket}

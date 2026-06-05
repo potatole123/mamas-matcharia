@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { BaseCupSnapshot } from './drinkCup'
 import { DrinkProgressContext, type StationSlot } from './DrinkProgressContext'
 import { useGameDayContext } from './GameDayContext'
@@ -14,7 +14,10 @@ import {
   INITIAL_BASE_STATION,
   INITIAL_WHISKING_STATION,
   WHISK_DURATION_MS,
+  getPitcherJobCompleteMs,
+  getPitcherPourCompleteMs,
   type BaseStationState,
+  type PitcherHeatJob,
   type WhiskingStationState,
 } from './stationProgress'
 import type { Matcha } from '../../server/src/types/enums'
@@ -168,6 +171,29 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
   /** Bowl/bench is shared; a cup at the station can wait for topping while you prep the next batch here. */
   const whiskingStation = standaloneWhiskingStation
 
+  const pitcherPourAppliedForJobRef = useRef<number | null>(null)
+
+  const applyPitcherHeatPour = useCallback((job: PitcherHeatJob) => {
+    updateDrink(job.drinkId, {
+      recipe: {
+        ...(job.milk ? { milk: job.milk } : {}),
+        temp: job.keepIced ? 'iced' : 'hot',
+      },
+      cupVisual: { hasMilk: true },
+    })
+    setBaseStation((prev) => {
+      if (!prev.pitcherHeatJob || prev.pitcherHeatJob.startedAt !== job.startedAt) {
+        return prev
+      }
+      return {
+        ...prev,
+        pitcherHasMilk: false,
+        pitcherMilk: null,
+      }
+    })
+    pitcherPourAppliedForJobRef.current = job.startedAt
+  }, [updateDrink])
+
   useEffect(() => {
     const startedAt = standaloneWhiskingStation.whiskStartedAt
     if (!startedAt || standaloneWhiskingStation.isWhisked) {
@@ -190,6 +216,45 @@ export function DrinkProgressProvider({ children }: { children: ReactNode }) {
 
     return () => window.clearTimeout(timeoutId)
   }, [standaloneWhiskingStation.whiskStartedAt, standaloneWhiskingStation.isWhisked])
+
+  useEffect(() => {
+    const job = baseStation.pitcherHeatJob
+    if (!job) {
+      return
+    }
+
+    const pourAt = job.startedAt + getPitcherPourCompleteMs()
+    const idleAt = job.startedAt + getPitcherJobCompleteMs()
+    const now = Date.now()
+
+    if (now >= pourAt && pitcherPourAppliedForJobRef.current !== job.startedAt) {
+      applyPitcherHeatPour(job)
+    }
+
+    const pourTimeoutId = window.setTimeout(() => {
+      if (pitcherPourAppliedForJobRef.current === job.startedAt) {
+        return
+      }
+      applyPitcherHeatPour(job)
+    }, Math.max(0, pourAt - now))
+
+    const idleTimeoutId = window.setTimeout(() => {
+      setBaseStation((prev) => {
+        if (!prev.pitcherHeatJob || prev.pitcherHeatJob.startedAt !== job.startedAt) {
+          return prev
+        }
+        return {
+          ...prev,
+          pitcherHeatJob: null,
+        }
+      })
+    }, Math.max(0, idleAt - now))
+
+    return () => {
+      window.clearTimeout(pourTimeoutId)
+      window.clearTimeout(idleTimeoutId)
+    }
+  }, [applyPitcherHeatPour, baseStation.pitcherHeatJob])
 
   const updateWhiskingStation = useCallback(
     (
