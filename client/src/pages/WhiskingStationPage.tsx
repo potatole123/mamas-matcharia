@@ -279,6 +279,7 @@ function WhiskingStationPage() {
 
   function handleBowlClick() {
     if (!canPourIntoCup) return
+    const completedWhiskingState = { ...whiskingStation }
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setBowlAnimPhase('over-cup')
@@ -286,8 +287,11 @@ function WhiskingStationPage() {
     })
     trackTimeout(() => {
       updateWhiskingCup({ hasBaseDrink: true })
-      if (drinkAtWhisking && benchMatcha) {
-        updateDrink(drinkAtWhisking.id, { recipe: { matcha: benchMatcha } })
+      if (drinkAtWhisking) {
+        updateDrink(drinkAtWhisking.id, {
+          recipe: benchMatcha ? { matcha: benchMatcha } : {},
+          whisking: completedWhiskingState,
+        })
       }
       updateWhiskingStation({
         bowlMatchaLevel: 'empty',

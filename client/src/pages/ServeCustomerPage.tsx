@@ -23,6 +23,7 @@ const SERVE_TASTE_PAUSE_MS = 1000
 const SERVE_TASTE_ANIMATION_MS = 2600
 const SERVE_SCORE_REVEAL_DELAY_MS = SERVE_TASTE_START_DELAY_MS + SERVE_TASTE_ANIMATION_MS
 const SERVE_RETURN_TO_ORDER_DELAY_MS = 3000
+const HAPPY_BEAR_SCORE_THRESHOLD = 11
 
 const SCORE_ROWS: Array<{ label: string; key: keyof OrderScoreResult }> = [
   { label: 'Waiting', key: 'waitingScore' },
@@ -83,7 +84,9 @@ function ServeCustomerPage() {
       !hasSeenFirstDrinkCongrats,
   )
   const bearReactionImage =
-    score && isScoreRevealed ? (score.totalScore >= 9 ? bearLaugh : bearSad) : bearSmile
+    score && isScoreRevealed
+      ? (score.totalScore >= HAPPY_BEAR_SCORE_THRESHOLD ? bearLaugh : bearSad)
+      : bearSmile
   const bearImage = isBearTasting ? bearOpen : bearReactionImage
 
   useEffect(() => {

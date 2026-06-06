@@ -9,13 +9,13 @@ import type { Recipe } from '../types/game'
 const ACCURACY_FIELDS = [
   'cupSize',
   'temp',
-  'iceLevel',
+  'matcha',
   'milk',
   'flavor',
   'sweetener',
 ] as const
 
-const MEASUREMENT_FIELDS = ['matcha', 'sweetnessLevel'] as const
+const MEASUREMENT_RECIPE_FIELDS = ['iceLevel', 'sweetnessLevel'] as const
 const TOPPING_FIELDS = ['creamTop', 'powder'] as const
 
 const MAX_WAITING_SCORE = 5
@@ -26,7 +26,7 @@ const TIP_RATE_VARIANCE = 0.05
 
 type RecipeScoreField =
   | (typeof ACCURACY_FIELDS)[number]
-  | (typeof MEASUREMENT_FIELDS)[number]
+  | (typeof MEASUREMENT_RECIPE_FIELDS)[number]
   | (typeof TOPPING_FIELDS)[number]
 
 function normalizeRecipeValue(
@@ -80,10 +80,32 @@ function calculateTipRate() {
   return AVERAGE_TIP_RATE + randomOffset
 }
 
+function getExpectedMatchaGrams(recipe: Recipe) {
+  return recipe.cupSize === 'large' ? 4 : 3
+}
+
+function getMadeMatchaGrams(submission: DrinkOrderSubmission) {
+  const { bowlMatchaLevel } = submission.drink.whisking
+  return bowlMatchaLevel === 'empty' ? 0 : Number(bowlMatchaLevel)
+}
+
+function calculateMeasurementScore(submission: DrinkOrderSubmission) {
+  const recipeMeasurementScore = countMatches(
+    submission.targetRecipe,
+    submission.madeRecipe,
+    MEASUREMENT_RECIPE_FIELDS,
+  )
+  const matchaAmountScore =
+    getMadeMatchaGrams(submission) === getExpectedMatchaGrams(submission.targetRecipe) ? 1 : 0
+
+  return recipeMeasurementScore + matchaAmountScore
+}
+
 /**
  * Score one served drink against its order ticket.
  *
- * Missing milk is equivalent to "none"; missing matcha is a mismatch.
+ * Missing milk is equivalent to "none"; missing matcha grade is a mismatch.
+ * Matcha amount is measured as 3g for small cups and 4g for large cups.
  * Waiting score is full through 40 seconds, then linearly decays to 0 at 300 seconds.
  * Tips are calculated from a per-order random tip rate centered at 25%.
  */
@@ -96,11 +118,7 @@ export function scoreDrinkOrder(
     submission.madeRecipe,
     ACCURACY_FIELDS,
   )
-  const measurementScore = countMatches(
-    submission.targetRecipe,
-    submission.madeRecipe,
-    MEASUREMENT_FIELDS,
-  )
+  const measurementScore = calculateMeasurementScore(submission)
   const toppingScore = countMatches(
     submission.targetRecipe,
     submission.madeRecipe,

@@ -15,7 +15,7 @@ import type { OrderScoreResult } from '../types/drinkSubmission'
 import { isFreePlayMode } from '../utils/gameMode'
 import './GameSummary.css'
 
-const TARGET_POINTS_PER_ORDER = 9
+const TARGET_POINTS_PER_ORDER = 11
 const MULTIPLAYER_RESULTS_REFRESH_MS = 2000
 
 const SCORE_ROWS: Array<{ label: string; key: keyof OrderScoreResult }> = [
