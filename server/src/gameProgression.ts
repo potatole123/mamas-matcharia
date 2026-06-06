@@ -36,10 +36,12 @@ export type LevelConfig = {
   recipeSet: RecipeSetInput
 }
 
+const PASSING_POINTS_PER_ORDER = 11
+
 const LEVEL_CONFIGS: LevelConfig[] = [
   {
     level: 1,
-    targetScore: 4 * 9,
+    targetScore: 4 * PASSING_POINTS_PER_ORDER,
     npcCount: 4,
     npcFrequencySeconds: 30,
     recipeSet: {
@@ -57,7 +59,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
   },
   {
     level: 2,
-    targetScore: 5 * 9,
+    targetScore: 5 * PASSING_POINTS_PER_ORDER,
     npcCount: 5,
     npcFrequencySeconds: 25,
     recipeSet: {
@@ -75,7 +77,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
   },
   {
     level: 3,
-    targetScore: 7 * 9,
+    targetScore: 7 * PASSING_POINTS_PER_ORDER,
     npcCount: 7,
     npcFrequencySeconds: 20,
     recipeSet: {
@@ -93,7 +95,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
   },
   {
     level: 4,
-    targetScore: 9 * 9,
+    targetScore: 9 * PASSING_POINTS_PER_ORDER,
     npcCount: 9,
     npcFrequencySeconds: 15,
     recipeSet: {
@@ -111,7 +113,7 @@ const LEVEL_CONFIGS: LevelConfig[] = [
   },
   {
     level: 5,
-    targetScore: 11 * 9,
+    targetScore: 11 * PASSING_POINTS_PER_ORDER,
     npcCount: 11,
     npcFrequencySeconds: 10,
     recipeSet: {
@@ -135,14 +137,14 @@ export function getLevelConfig(level: number): LevelConfig {
   if (configuredLevel) {
     return {
       ...configuredLevel,
-      targetScore: configuredLevel.npcCount * 9,
+      targetScore: configuredLevel.npcCount * PASSING_POINTS_PER_ORDER,
     }
   }
 
   const npcCount = Math.min(20, 13 + (level - 5) * 2)
   return {
     level,
-    targetScore: npcCount * 9,
+    targetScore: npcCount * PASSING_POINTS_PER_ORDER,
     npcCount,
     npcFrequencySeconds: Math.max(15, 20 - (level - 5) * 5),
     recipeSet: {},
